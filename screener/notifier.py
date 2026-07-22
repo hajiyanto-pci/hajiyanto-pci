@@ -133,6 +133,120 @@ def save_json(signals: list[Signal], output_dir: str, mode: str = "eod") -> Path
     return path
 
 
+def discover_telegram_chat_id(
+    token: str | None = None,
+    *,
+    wait_seconds: int = 90,
+    poll_every: float = 3.0,
+) -> str | None:
+    """Ambil chat_id dari update Telegram setelah user chat bot.
+
+    Langkah user:
+    1) Buka t.me/<bot_username>
+    2) Tekan Start / kirim /start
+    3) Jalankan perintah ini; chat_id akan muncul otomatis.
+    """
+    import time
+
+    token = (token or os.getenv("TELEGRAM_BOT_TOKEN", "")).strip()
+    if not token:
+        print(
+            "Token belum ada. Isi TELEGRAM_BOT_TOKEN di .env "
+            "atau jalankan: python run_screener.py --get-chat-id --token <TOKEN>"
+        )
+        return None
+
+    me = requests.get(f"https://api.telegram.org/bot{token}/getMe", timeout=20)
+    me.raise_for_status()
+    payload = me.json()
+    if not payload.get("ok"):
+        print(f"Token tidak valid: {payload}")
+        return None
+    username = payload["result"].get("username", "bot")
+    print(f"Bot OK: @{username}")
+    print(f"1) Buka: https://t.me/{username}")
+    print("2) Tekan Start / kirim pesan: /start")
+    print(f"3) Menunggu chat_id hingga {wait_seconds} detik...\n")
+
+    # Hapus offset lama supaya update baru lebih mudah terbaca
+    requests.get(
+        f"https://api.telegram.org/bot{token}/getUpdates",
+        params={"offset": -1},
+        timeout=20,
+    )
+
+    deadline = time.time() + wait_seconds
+    seen: set[str] = set()
+    while time.time() < deadline:
+        resp = requests.get(
+            f"https://api.telegram.org/bot{token}/getUpdates",
+            params={"timeout": 5},
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        for upd in data.get("result", []):
+            msg = upd.get("message") or upd.get("edited_message") or {}
+            chat = msg.get("chat") or {}
+            chat_id = chat.get("id")
+            if chat_id is None:
+                continue
+            chat_id_s = str(chat_id)
+            if chat_id_s in seen:
+                continue
+            seen.add(chat_id_s)
+            name = (
+                chat.get("username")
+                or " ".join(
+                    x for x in [chat.get("first_name"), chat.get("last_name")] if x
+                )
+                or chat.get("title")
+                or "-"
+            )
+            print("✅ Chat ID ditemukan!")
+            print(f"   chat_id : {chat_id_s}")
+            print(f"   dari    : {name}")
+            print("\nMasukkan ke file .env:")
+            print(f"TELEGRAM_BOT_TOKEN={token}")
+            print(f"TELEGRAM_CHAT_ID={chat_id_s}")
+            return chat_id_s
+        remaining = int(deadline - time.time())
+        print(f"... belum ada pesan. Sisa {remaining}s. Pastikan sudah /start di bot.")
+        time.sleep(poll_every)
+
+    print(
+        "\nTimeout: belum ada pesan ke bot.\n"
+        f"Buka https://t.me/{username} → Start → jalankan lagi --get-chat-id"
+    )
+    return None
+
+
+def write_telegram_env(token: str, chat_id: str, env_path: str | Path = ".env") -> Path:
+    """Tulis/update TELEGRAM_* di .env tanpa menimpa key lain."""
+    path = Path(env_path)
+    lines: list[str] = []
+    if path.exists():
+        lines = path.read_text(encoding="utf-8").splitlines()
+
+    def upsert(key: str, value: str) -> None:
+        nonlocal lines
+        prefix = f"{key}="
+        for i, line in enumerate(lines):
+            if line.startswith(prefix) or line.startswith(f"# {prefix}"):
+                lines[i] = f"{key}={value}"
+                return
+        lines.append(f"{key}={value}")
+
+    upsert("TELEGRAM_BOT_TOKEN", token)
+    upsert("TELEGRAM_CHAT_ID", str(chat_id))
+    if not any(l.startswith("WHATSAPP_PHONE=") for l in lines):
+        # biarkan template WA tetap ada jika file baru
+        pass
+    path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    print(f"\nTersimpan ke {path.resolve()}")
+    return path
+
+
 def send_telegram(signals: list[Signal], mode: str = "eod") -> bool:
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()

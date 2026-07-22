@@ -11,7 +11,13 @@ import yaml
 from dotenv import load_dotenv
 
 from screener.data import fetch_history
-from screener.notifier import notify_all, print_setup_guide, send_test_notifications
+from screener.notifier import (
+    discover_telegram_chat_id,
+    notify_all,
+    print_setup_guide,
+    send_test_notifications,
+    write_telegram_env,
+)
 from screener.schedule import MODES, explain_schedule, recommend_primary_mode
 from screener.signals import screen_all
 from screener.universe import DEFAULT_IDX_SYMBOLS
@@ -62,6 +68,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Kirim pesan uji ke Telegram/WhatsApp yang sudah dikonfigurasi",
     )
     parser.add_argument(
+        "--get-chat-id",
+        action="store_true",
+        help="Ambil TELEGRAM_CHAT_ID: buka bot, tekan Start, lalu jalankan perintah ini",
+    )
+    parser.add_argument(
+        "--token",
+        help="Token bot Telegram (opsional; default dari .env TELEGRAM_BOT_TOKEN)",
+    )
+    parser.add_argument(
+        "--save-env",
+        action="store_true",
+        help="Saat --get-chat-id berhasil, simpan token+chat_id ke file .env",
+    )
+    parser.add_argument(
         "--min-score",
         type=float,
         help="Override skor minimum",
@@ -107,6 +127,18 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     load_dotenv()
+
+    if args.get_chat_id:
+        token = (args.token or "").strip() or None
+        chat_id = discover_telegram_chat_id(token)
+        if not chat_id:
+            return 1
+        if args.save_env:
+            used_token = (args.token or "").strip() or __import__("os").getenv(
+                "TELEGRAM_BOT_TOKEN", ""
+            )
+            write_telegram_env(used_token.strip(), chat_id)
+        return 0
 
     if args.test_notify:
         return send_test_notifications()
