@@ -6,12 +6,27 @@ Pakai **GitHub Actions** di repo ini:
 
 1. Merge/push kode ke GitHub
 2. Buka repo → **Settings → Secrets and variables → Actions → New repository secret**
-3. Tambahkan secret:
-   - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_CHAT_ID`
-   - (opsional) `WHATSAPP_PHONE`, `CALLMEBOT_APIKEY`
+3. Tambahkan **2 secret** (satu per satu):
+
+| Field di GitHub | Isi yang benar |
+|-----------------|----------------|
+| **Name** | `TELEGRAM_BOT_TOKEN` |
+| **Secret** | token dari BotFather (contoh `8784...:AAE...`) |
+
+| Field di GitHub | Isi yang benar |
+|-----------------|----------------|
+| **Name** | `TELEGRAM_CHAT_ID` |
+| **Secret** | angka chat id (contoh `784179772`) |
+
+**Jangan** taruh token di kolom Name. Name hanya huruf/angka/`_` (tanpa spasi, tanpa `:`).
+
+Opsional WhatsApp:
+- Name: `WHATSAPP_PHONE` / `CALLMEBOT_APIKEY`
+
 4. Buka tab **Actions → Stock Screener IDX (online)**
 5. Klik **Run workflow** (manual) atau biarkan cron tiap hari kerja **16:20 WIB**
+
+> Jika workflow belum muncul: pastikan branch yang berisi `.github/workflows/screener.yml` sudah di-merge ke `main`, atau jalankan Actions dari branch tersebut.
 
 Workflow file: `.github/workflows/screener.yml`
 
