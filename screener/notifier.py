@@ -27,15 +27,22 @@ MODE_TITLE = {
 def notify_all(signals: Iterable[Signal], cfg: dict) -> None:
     signals = list(signals)
     mode = str(cfg.get("mode", "eod")).lower()
+    as_of = cfg.get("as_of")
+    as_of_label = as_of.isoformat() if as_of else None
     notify_cfg = cfg.get("notify", {}) or {}
     if notify_cfg.get("console", True):
-        print_console(signals, mode=mode)
+        print_console(signals, mode=mode, as_of=as_of_label)
     if notify_cfg.get("save_json", True):
-        save_json(signals, notify_cfg.get("output_dir", "output"), mode=mode)
+        save_json(
+            signals,
+            notify_cfg.get("output_dir", "output"),
+            mode=mode,
+            as_of=as_of_label,
+        )
     if notify_cfg.get("telegram", True):
-        send_telegram(signals, mode=mode)
+        send_telegram(signals, mode=mode, as_of=as_of_label)
     if notify_cfg.get("whatsapp", True):
-        send_whatsapp(signals, mode=mode)
+        send_whatsapp(signals, mode=mode, as_of=as_of_label)
 
 
 def _mark(ok: bool) -> str:
@@ -62,8 +69,16 @@ def format_signal_block(s: Signal, *, markdown: bool = False) -> str:
     return "\n".join(lines)
 
 
-def build_message(signals: list[Signal], mode: str, *, markdown: bool = False) -> str:
+def build_message(
+    signals: list[Signal],
+    mode: str,
+    *,
+    markdown: bool = False,
+    as_of: str | None = None,
+) -> str:
     title = MODE_TITLE.get(mode, mode)
+    if as_of:
+        title = f"Analisa {as_of}"
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     if markdown:
         header = f"🚀 *Stock Screener IDX — {title}*\nWaktu: {stamp}\n"
@@ -82,8 +97,10 @@ def build_message(signals: list[Signal], mode: str, *, markdown: bool = False) -
     return "\n".join(parts).strip()
 
 
-def print_console(signals: list[Signal], mode: str = "eod") -> None:
-    title = MODE_TITLE.get(mode, mode)
+def print_console(
+    signals: list[Signal], mode: str = "eod", as_of: str | None = None
+) -> None:
+    title = f"Analisa {as_of}" if as_of else MODE_TITLE.get(mode, mode)
     print(f"\n=== HASIL SCREENING SAHAM — {title} ===")
     print(f"Waktu: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     if not signals:
@@ -111,21 +128,28 @@ def print_console(signals: list[Signal], mode: str = "eod") -> None:
         print()
 
 
-def save_json(signals: list[Signal], output_dir: str, mode: str = "eod") -> Path:
+def save_json(
+    signals: list[Signal],
+    output_dir: str,
+    mode: str = "eod",
+    as_of: str | None = None,
+) -> Path:
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    path = out / f"signals_{mode}_{stamp}.json"
+    tag = as_of.replace("-", "") if as_of else mode
+    path = out / f"signals_{tag}_{stamp}.json"
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "mode": mode,
+        "as_of": as_of,
         "count": len(signals),
         "signals": [s.to_dict() for s in signals],
     }
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    latest = out / f"signals_latest_{mode}.json"
+    latest = out / f"signals_latest_{tag}.json"
     latest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    if mode == "eod":
+    if mode == "eod" and as_of is None:
         (out / "signals_latest.json").write_text(
             json.dumps(payload, indent=2), encoding="utf-8"
         )
@@ -247,7 +271,9 @@ def write_telegram_env(token: str, chat_id: str, env_path: str | Path = ".env") 
     return path
 
 
-def send_telegram(signals: list[Signal], mode: str = "eod") -> bool:
+def send_telegram(
+    signals: list[Signal], mode: str = "eod", as_of: str | None = None
+) -> bool:
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
     if not token or not chat_id:
@@ -258,7 +284,7 @@ def send_telegram(signals: list[Signal], mode: str = "eod") -> bool:
         )
         return False
 
-    text = build_message(signals, mode, markdown=True)
+    text = build_message(signals, mode, markdown=True, as_of=as_of)
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
         resp = requests.post(
@@ -280,9 +306,11 @@ def send_telegram(signals: list[Signal], mode: str = "eod") -> bool:
         return False
 
 
-def send_whatsapp(signals: list[Signal], mode: str = "eod") -> bool:
+def send_whatsapp(
+    signals: list[Signal], mode: str = "eod", as_of: str | None = None
+) -> bool:
     """Kirim WhatsApp via CallMeBot (pribadi) atau Twilio (opsional)."""
-    text = build_message(signals, mode, markdown=False)
+    text = build_message(signals, mode, markdown=False, as_of=as_of)
 
     # Prefer CallMeBot jika dikonfigurasi
     phone = os.getenv("WHATSAPP_PHONE", "").strip()

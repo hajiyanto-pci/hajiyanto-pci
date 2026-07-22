@@ -20,7 +20,7 @@ from screener.notifier import (
     write_telegram_env,
 )
 from screener.schedule import MODES, explain_schedule, recommend_primary_mode
-from screener.signals import screen_all
+from screener.signals import parse_as_of, screen_all
 from screener.universe import DEFAULT_IDX_SYMBOLS
 
 
@@ -52,6 +52,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--mode",
         choices=MODES,
         help="Mode notifikasi: morning | midday | eod (default dari config / eod)",
+    )
+    parser.add_argument(
+        "--as-of",
+        help=(
+            "Analisa per tanggal: yesterday/kemarin atau YYYY-MM-DD. "
+            "Contoh: --as-of kemarin"
+        ),
     )
     parser.add_argument(
         "--explain-schedule",
@@ -186,11 +193,22 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_whatsapp:
         cfg.setdefault("notify", {})["whatsapp"] = False
 
+    as_of = parse_as_of(args.as_of)
+    if as_of is not None:
+        cfg["as_of"] = as_of
+        # Analisa historis selalu pakai bar harian lengkap (bukan midday projection)
+        cfg["mode"] = "eod"
+        mode = "eod"
+
     symbols = args.symbols or cfg.get("symbols") or DEFAULT_IDX_SYMBOLS
     symbols = [str(s).strip().upper() for s in symbols if str(s).strip()]
     market = str(cfg.get("market", "IDX"))
 
-    print(f"Mode: {mode} | Memindai {len(symbols)} saham ({market})...")
+    as_of_label = as_of.isoformat() if as_of else "terbaru"
+    print(
+        f"Mode: {mode} | As-of: {as_of_label} | "
+        f"Memindai {len(symbols)} saham ({market})..."
+    )
     histories = fetch_history(
         symbols,
         history_days=int(cfg.get("history_days", 90)),

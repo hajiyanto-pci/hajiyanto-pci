@@ -55,10 +55,53 @@ def _bar_date(idx_value) -> datetime.date:
     return ts.date()
 
 
-def _prepare_frame(df: pd.DataFrame, mode: str, now: datetime | None = None) -> pd.DataFrame:
-    """Morning memakai bar lengkap terakhir; eod/midday pakai bar terbaru."""
+def parse_as_of(value: str | None, *, now: datetime | None = None) -> datetime.date | None:
+    """Parse 'yesterday' / 'kemarin' / 'YYYY-MM-DD' menjadi tanggal Jakarta.
+
+    'kemarin' = sesi bursa sebelumnya (lewati Sabtu/Minggu).
+    """
+    from datetime import date, timedelta
+
+    if value is None or str(value).strip() == "":
+        return None
+    raw = str(value).strip().lower()
+    if now is None:
+        now = datetime.now(JAKARTA)
+    elif now.tzinfo is None:
+        now = now.replace(tzinfo=JAKARTA)
+    else:
+        now = now.astimezone(JAKARTA)
+
+    if raw in {"yesterday", "kemarin", "h-1", "prev", "last", "last-session"}:
+        d = now.date() - timedelta(days=1)
+        # Lewati weekend; hari libur nasional tetap perlu tanggal eksplisit
+        while d.weekday() >= 5:  # 5=Sabtu, 6=Minggu
+            d -= timedelta(days=1)
+        return d
+    return datetime.strptime(raw, "%Y-%m-%d").date()
+
+
+def slice_as_of(df: pd.DataFrame, as_of: datetime.date | None) -> pd.DataFrame:
+    """Potong data sampai tanggal as_of (inklusif), untuk analisa hari kemarin/dll."""
+    if df is None or df.empty or as_of is None:
+        return df
+    mask = [_bar_date(i) <= as_of for i in df.index]
+    return df.loc[mask].copy()
+
+
+def _prepare_frame(
+    df: pd.DataFrame,
+    mode: str,
+    now: datetime | None = None,
+    as_of: datetime.date | None = None,
+) -> pd.DataFrame:
+    """Siapkan frame: as_of (analisa tanggal) atau morning (pakai H-1)."""
     if df is None or df.empty:
         return df
+
+    if as_of is not None:
+        return slice_as_of(df, as_of)
+
     mode = (mode or "eod").lower()
     if mode != "morning":
         return df
@@ -79,6 +122,7 @@ def evaluate_symbol(
     now: datetime | None = None,
 ) -> Signal | None:
     mode = str(cfg.get("mode", "eod")).lower()
+    as_of = cfg.get("as_of")
     vol_days = int(cfg.get("volume_avg_days", 20))
     vol_min = float(cfg.get("volume_spike_min", 1.5))
     res_lookback = int(cfg.get("resistance_lookback", 20))
@@ -93,11 +137,11 @@ def evaluate_symbol(
     require_above_ma = bool(cfg.get("require_above_ma", True))
     require_accumulation = bool(cfg.get("require_accumulation", True))
 
-    if mode == "midday":
+    if mode == "midday" and as_of is None:
         vol_min = float(cfg.get("midday_volume_spike_min", max(vol_min, 2.0)))
         min_score = float(cfg.get("midday_min_score", max(min_score, 70)))
 
-    work = _prepare_frame(df, mode, now=now)
+    work = _prepare_frame(df, mode, now=now, as_of=as_of)
     need = max(vol_days, res_lookback, rsi_period, ma_period, accum_lookback) + 2
     if work is None or len(work) < need:
         return None
@@ -178,7 +222,10 @@ def evaluate_symbol(
         last_ma=last_ma,
     )
 
-    if mode == "morning":
+    if as_of is not None:
+        bar_day = _bar_date(work.index[-1])
+        reasons.insert(0, f"Analisa as-of {as_of.isoformat()} (bar {bar_day.isoformat()})")
+    elif mode == "morning":
         reasons.insert(0, "Watchlist dari breakout H-1 (siap pantau di open)")
     elif mode == "midday":
         reasons.insert(0, "Early alert intraday (belum final sampai EOD)")

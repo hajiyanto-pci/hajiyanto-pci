@@ -68,25 +68,17 @@ Lihat penjelasan lengkap:
 python run_screener.py --explain-schedule
 ```
 
-## Menjalankan screening
+## Analisa hari kemarin
 
 ```bash
-# Scan default (mode EOD / sore)
-python run_screener.py
+# Sesi bursa sebelumnya (lewati Sabtu/Minggu)
+python run_screener.py --as-of kemarin
 
-# Mode spesifik
-python run_screener.py --mode eod
-python run_screener.py --mode morning
-python run_screener.py --mode midday
-
-# Scan saham tertentu
-python run_screener.py -s BBCA BBRI TLKM ADRO GOTO
-
-# Perketat kriteria
-python run_screener.py --volume-spike 2.0 --min-score 70
+# Tanggal spesifik
+python run_screener.py --as-of 2026-07-21
 
 # Tanpa Telegram
-python run_screener.py --no-telegram
+python run_screener.py --as-of kemarin --no-telegram
 ```
 
 Hasil JSON tersimpan di `output/signals_latest.json` (EOD) / `signals_latest_<mode>.json`.
