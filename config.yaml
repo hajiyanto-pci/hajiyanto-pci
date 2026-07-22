@@ -1,0 +1,41 @@
+# Konfigurasi Stock Screener IDX
+market: IDX
+currency: IDR
+
+# Universe saham (kode tanpa .JK). Kosongkan untuk pakai daftar default likuid.
+symbols: []
+
+# Lookback data harian
+history_days: 90
+
+# --- Kriteria volume ---
+# Volume hari ini vs rata-rata N hari
+volume_avg_days: 20
+# Minimal kelipatan volume vs rata-rata (contoh: 1.5 = 150%)
+volume_spike_min: 1.5
+
+# --- Break resistance ---
+# Resistance = highest high N hari (exclude hari ini)
+resistance_lookback: 20
+# Toleransi breakout: close harus >= resistance * (1 + buffer)
+breakout_buffer_pct: 0.0
+
+# --- Potensi naik / kualitas sinyal ---
+# RSI tidak boleh terlalu overbought
+rsi_period: 14
+rsi_max: 75
+# Momentum: close di atas MA
+ma_period: 20
+# Minimal skor total (0-100) agar masuk alert
+min_score: 60
+
+# --- Filter likuiditas ---
+min_avg_volume: 500000
+min_price: 50
+
+# Notifikasi
+notify:
+  console: true
+  telegram: true
+  save_json: true
+  output_dir: output
