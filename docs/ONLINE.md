@@ -44,3 +44,22 @@ Jalankan cron di VPS/Raspberry Pi/Cloud Agent Cursor dengan perintah yang sama s
 | Notifikasi harian otomatis | **GitHub Actions (online)** |
 | Eksperimen formula / debug | Lokal |
 | Analisa ad-hoc tanggal tertentu | Lokal atau Actions manual |
+
+## Bot chat interaktif (perintah Telegram)
+
+Jalankan proses bot (harus tetap hidup):
+
+```bash
+python run_bot.py
+```
+
+Lalu chat ke bot:
+
+```
+/kemarin
+/cek 2026-07-21
+/hariini
+/help
+```
+
+Untuk notifikasi otomatis tiap sore tanpa chat, tetap pakai GitHub Actions (tambahkan Secrets di repo Settings).

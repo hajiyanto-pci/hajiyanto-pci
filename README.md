@@ -18,16 +18,22 @@ Hasil ke **Telegram/WhatsApp**, bisa dijalankan **online via GitHub Actions** (t
 
 > Catatan: ini alat bantu teknikal, **bukan jaminan** saham akan naik.
 
-## Notifikasi Telegram / WhatsApp
+## Chat ke bot Telegram
 
-Panduan lengkap: [`docs/NOTIFIKASI.md`](docs/NOTIFIKASI.md)
+Setelah `python run_bot.py` berjalan (atau Cloud Agent online), chat `@Sahamgacor_bot`:
 
-```bash
-cp .env.example .env
-# isi TELEGRAM_* dan/atau WHATSAPP_PHONE + CALLMEBOT_APIKEY
-python run_screener.py --setup-notify   # tampilkan panduan
-python run_screener.py --test-notify    # uji kirim pesan
-python run_screener.py --mode eod       # scan + kirim alert
+```
+/start
+/kemarin
+/cek 2026-07-21
+/hariini
+/help
+```
+
+Atau teks bebas:
+```
+cek kemarin
+cek 2026-07-21
 ```
 
 ## Cara kerja skor
