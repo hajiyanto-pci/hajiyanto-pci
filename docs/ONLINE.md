@@ -24,9 +24,15 @@ Opsional WhatsApp:
 - Name: `WHATSAPP_PHONE` / `CALLMEBOT_APIKEY`
 
 4. Buka tab **Actions → Stock Screener IDX (online)**
-5. Klik **Run workflow** (manual) atau biarkan cron tiap hari kerja **16:20 WIB**
+5. Klik **Run workflow** (manual) atau biarkan scheduler otomatis:
 
-> Jika workflow belum muncul: pastikan branch yang berisi `.github/workflows/screener.yml` sudah di-merge ke `main`, atau jalankan Actions dari branch tersebut.
+| Waktu (WIB) | Mode | Isi alert |
+|-------------|------|-----------|
+| **09:10** | `open` | Early volume + potensi naik + saran SL/TP |
+| **12:05** | `midday` | Break sesi 1: volume & kandidat naik + SL/TP |
+| **16:20** | `eod` | Konfirmasi final + SL/TP |
+
+> Jika workflow belum muncul: merge PR ke `main`, atau jalankan Actions dari branch `cursor/stock-screener-alerts-8093`.
 
 Workflow file: `.github/workflows/screener.yml`
 

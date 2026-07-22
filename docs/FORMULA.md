@@ -42,11 +42,24 @@ Di tool ini dipakai **proksi**:
 
 Ini mendekati konsep “bandar akumulasi”, tapi **bukan** data broker asli.
 
+## Saran Stop Loss / Take Profit
+
+Untuk setiap kandidat (posisi long breakout):
+
+- **Entry** ≈ harga close sinyal  
+- **SL** = lebih rendah antara `entry - 1.5×ATR(14)` dan swing-low 5 hari  
+- **TP1** = entry + **1.5R** (R = jarak entry→SL)  
+- **TP2** = entry + **2.5R**
+
+Ini saran teknikal, bukan jaminan. Sesuaikan dengan risk management pribadi (mis. risiko max 1–2% modal).
+
 ## Cara pakai
 
 ```bash
 python run_screener.py --as-of kemarin
-python run_screener.py --as-of 2026-07-21 --min-score 70
+python run_screener.py --mode open      # simulasi 09:10
+python run_screener.py --mode midday    # break sesi 1
+python run_screener.py --mode eod
 ```
 
-Ubah bobot/filter di `config.yaml` (`require_money_flow`, `require_stoch`, `min_score`, dll).
+Ubah bobot/filter di `config.yaml` (`require_money_flow`, `sl_atr_mult`, `tp1_rr`, dll).

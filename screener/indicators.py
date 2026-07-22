@@ -10,6 +10,91 @@ def sma(series: pd.Series, period: int) -> pd.Series:
     return series.rolling(window=period, min_periods=period).mean()
 
 
+def true_range(high: pd.Series, low: pd.Series, close: pd.Series) -> pd.Series:
+    prev_close = close.shift(1)
+    ranges = pd.concat(
+        [
+            (high - low).abs(),
+            (high - prev_close).abs(),
+            (low - prev_close).abs(),
+        ],
+        axis=1,
+    )
+    return ranges.max(axis=1)
+
+
+def atr(
+    high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14
+) -> pd.Series:
+    return true_range(high, low, close).rolling(window=period, min_periods=period).mean()
+
+
+def suggest_sl_tp(
+    entry: float,
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    *,
+    atr_period: int = 14,
+    sl_atr_mult: float = 1.5,
+    tp1_rr: float = 1.5,
+    tp2_rr: float = 2.5,
+    swing_lookback: int = 5,
+) -> dict[str, float]:
+    """Saran Stop Loss & Take Profit untuk posisi long breakout.
+
+    SL: lebih rendah antara (entry - ATR*mult) dan low swing terkini.
+    TP1/TP2: berdasarkan risk-reward dari jarak entry→SL.
+    """
+    atr_series = atr(high, low, close, atr_period)
+    last_atr = float(atr_series.iloc[-1]) if len(atr_series) and np.isfinite(atr_series.iloc[-1]) else entry * 0.02
+    if last_atr <= 0:
+        last_atr = entry * 0.02
+
+    swing_low = float(low.iloc[-swing_lookback:].min())
+    sl_by_atr = entry - sl_atr_mult * last_atr
+    sl_by_swing = swing_low * 0.998
+    sl = min(sl_by_atr, sl_by_swing)
+    # Pastikan SL di bawah entry minimal ~1%
+    sl = min(sl, entry * 0.99)
+    if sl <= 0:
+        sl = entry * 0.97
+
+    risk = entry - sl
+    if risk <= 0:
+        risk = entry * 0.02
+        sl = entry - risk
+
+    tp1 = entry + tp1_rr * risk
+    tp2 = entry + tp2_rr * risk
+    rr1 = (tp1 - entry) / risk
+    rr2 = (tp2 - entry) / risk
+
+    def _px(x: float) -> float:
+        if entry >= 5000:
+            return float(round(x / 25) * 25)
+        if entry >= 2000:
+            return float(round(x / 10) * 10)
+        if entry >= 500:
+            return float(round(x / 5) * 5)
+        if entry >= 200:
+            return float(round(x / 2) * 2)
+        return float(round(x))
+
+    return {
+        "entry": _px(entry),
+        "sl": _px(sl),
+        "tp1": _px(tp1),
+        "tp2": _px(tp2),
+        "atr": round(last_atr, 2),
+        "risk_pct": round(risk / entry * 100, 2),
+        "tp1_pct": round((tp1 - entry) / entry * 100, 2),
+        "tp2_pct": round((tp2 - entry) / entry * 100, 2),
+        "rr1": round(rr1, 2),
+        "rr2": round(rr2, 2),
+    }
+
+
 def ema(series: pd.Series, period: int) -> pd.Series:
     return series.ewm(span=period, adjust=False).mean()
 

@@ -132,6 +132,13 @@ def test_message_contains_checklist():
         score=80,
         factor_scores={"volume": 16},
         reasons=["test"],
+        entry=10000,
+        sl=9700,
+        tp1=10450,
+        tp2=10750,
+        risk_pct=3.0,
+        tp1_pct=4.5,
+        tp2_pct=7.5,
         checklist={
             "volume": True,
             "above_ma": True,
@@ -144,6 +151,7 @@ def test_message_contains_checklist():
     )
     block = format_signal_block(sig)
     assert "Stochastic" in block and "Money-flow" in block
+    assert "SL" in block and "TP1" in block
     assert "BBCA" in build_message([sig], "eod")
 
 

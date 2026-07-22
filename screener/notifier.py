@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 MODE_TITLE = {
     "eod": "EOD Confirmed (sore)",
     "morning": "Watchlist Pagi (H-1)",
-    "midday": "Early Alert Siang",
+    "open": "Open 09:10 (early)",
+    "midday": "Break Sesi 1 / Midday",
 }
 
 
@@ -63,6 +64,13 @@ def format_signal_block(s: Signal, *, markdown: bool = False) -> str:
     name = f"*{s.symbol}*" if markdown else s.symbol
     stoch_k = getattr(s, "stoch_k", 0)
     cmf = getattr(s, "cmf", 0)
+    entry = getattr(s, "entry", s.price) or s.price
+    sl = getattr(s, "sl", 0) or 0
+    tp1 = getattr(s, "tp1", 0) or 0
+    tp2 = getattr(s, "tp2", 0) or 0
+    risk_pct = getattr(s, "risk_pct", 0) or 0
+    tp1_pct = getattr(s, "tp1_pct", 0) or 0
+    tp2_pct = getattr(s, "tp2_pct", 0) or 0
     lines = [
         f"{name} | skor {s.score} | harga {s.price:,.0f}",
         f"{_mark(c.get('volume', False))} Volume {s.volume_ratio:.1f}x",
@@ -73,6 +81,9 @@ def format_signal_block(s: Signal, *, markdown: bool = False) -> str:
         f"{_mark(c.get('stochastic', False))} Stochastic %K {stoch_k:.0f}",
         f"{_mark(c.get('money_flow', False))} Money-flow/CMF {cmf:.2f}",
         f"{_mark(c.get('macd', False))} MACD",
+        f"🎯 Entry ~{entry:,.0f}",
+        f"🛑 SL {sl:,.0f} (-{risk_pct:.1f}%)",
+        f"✅ TP1 {tp1:,.0f} (+{tp1_pct:.1f}%) | TP2 {tp2:,.0f} (+{tp2_pct:.1f}%)",
     ]
     return "\n".join(lines)
 

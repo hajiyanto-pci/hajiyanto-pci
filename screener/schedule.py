@@ -20,7 +20,7 @@ MARKET = {
     "close_done": time(16, 15),
 }
 
-MODES = ("morning", "midday", "eod")
+MODES = ("morning", "open", "midday", "eod")
 
 
 @dataclass(frozen=True)
@@ -35,24 +35,31 @@ class ScheduleAdvice:
 ADVICE: dict[str, ScheduleAdvice] = {
     "eod": ScheduleAdvice(
         mode="eod",
-        recommended_cron="20 16 * * 1-5",  # 16:20 WIB Senin-Jumat
+        recommended_cron="20 16 * * 1-5",
         purpose="Konfirmasi breakout + volume penuh setelah market close",
         reliability="Tinggi (data harian lengkap: close & volume final)",
-        best_for="Keputusan utama / sinyal 'saham kandidat naik' paling andal",
+        best_for="Keputusan utama + SL/TP final paling andal",
     ),
-    "morning": ScheduleAdvice(
-        mode="morning",
-        recommended_cron="30 8 * * 1-5",  # 08:30 WIB sebelum pre-open
-        purpose="Watchlist dari breakout kemarin untuk antisipasi di open",
-        reliability="Sedang (berdasarkan sinyal H-1 yang sudah confirmed)",
-        best_for="Persiapan order pagi, bukan deteksi volume hari ini",
+    "open": ScheduleAdvice(
+        mode="open",
+        recommended_cron="10 9 * * 1-5",
+        purpose="Pantau potensi naik & volume awal setelah market open",
+        reliability="Rendah-sedang (baru ~10 menit perdagangan)",
+        best_for="Early watchlist intraday jam 09:10",
     ),
     "midday": ScheduleAdvice(
         mode="midday",
-        recommended_cron="0 11,14 * * 1-5",  # 11:00 & 14:00 WIB
-        purpose="Early alert saat volume pembelian mulai naik + harga break resistance",
-        reliability="Lebih rendah (volume masih berjalan; banyak false positive)",
-        best_for="Monitoring intraday cepat, perlu filter ketat",
+        recommended_cron="5 12 * * 1-5",
+        purpose="Cek volume & breakout di break sesi 1",
+        reliability="Sedang (volume sesi 1 sudah terkumpul, belum final EOD)",
+        best_for="Seleksi kandidat sebelum sesi 2",
+    ),
+    "morning": ScheduleAdvice(
+        mode="morning",
+        recommended_cron="30 8 * * 1-5",
+        purpose="Watchlist dari breakout kemarin untuk antisipasi di open",
+        reliability="Sedang (berdasarkan sinyal H-1 yang sudah confirmed)",
+        best_for="Persiapan order pagi",
     ),
 }
 
@@ -70,10 +77,7 @@ def is_friday(now: datetime | None = None) -> bool:
 
 
 def session_progress(now: datetime | None = None) -> float:
-    """Perkiraan fraksi sesi reguler yang sudah berjalan (0..1).
-
-    Digunakan mode midday untuk memproyeksikan volume harian.
-    """
+    """Perkiraan fraksi sesi reguler yang sudah berjalan (0..1)."""
     n = now_jakarta(now)
     t = n.time()
     fri = is_friday(n)
@@ -109,7 +113,6 @@ def session_progress(now: datetime | None = None) -> float:
 
 
 def recommend_primary_mode() -> str:
-    """Untuk screener berbasis OHLCV harian, EOD paling cocok."""
     return "eod"
 
 
@@ -124,12 +127,17 @@ def explain_schedule() -> str:
         "  Sesi 2    13:30–15:50 (Jumat dari 14:00)",
         "  Close     ~16:00–16:15",
         "",
+        "Scheduler otomatis (GitHub Actions):",
+        "  09:10  mode open   — early volume + potensi naik",
+        "  12:05  mode midday — break sesi 1",
+        "  16:20  mode eod    — konfirmasi + SL/TP final",
+        "",
         "Perbandingan metode:",
         "",
     ]
-    for key in ("eod", "morning", "midday"):
+    for key in ("eod", "open", "midday", "morning"):
         a = ADVICE[key]
-        marker = " ← PALING COCOK untuk screener ini" if key == "eod" else ""
+        marker = " ← PALING ANDAL" if key == "eod" else ""
         lines.extend(
             [
                 f"[{key.upper()}]{marker}",
@@ -143,14 +151,9 @@ def explain_schedule() -> str:
     lines.extend(
         [
             "Kesimpulan:",
-            "  1) Utamakan SORE (EOD ~16:20) sebagai sinyal utama.",
-            "  2) Opsional PAGI (~08:30) sebagai pengingat watchlist H-1.",
-            "  3) SIANG hanya early-warning; volume belum final.",
-            "",
-            "Contoh cron (WIB, pastikan TZ=Asia/Jakarta):",
-            "  20 16 * * 1-5  python run_screener.py --mode eod",
-            "  30 8  * * 1-5  python run_screener.py --mode morning",
-            "  0  11,14 * * 1-5 python run_screener.py --mode midday",
+            "  1) 09:10 = early alert (noisy).",
+            "  2) 12:05 break sesi 1 = cek volume setengah hari.",
+            "  3) 16:20 EOD = keputusan utama + SL/TP.",
         ]
     )
     return "\n".join(lines)

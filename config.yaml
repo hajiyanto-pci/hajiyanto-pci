@@ -40,9 +40,19 @@ require_money_flow: true
 # Minimal skor total (0-100) agar masuk alert
 min_score: 62
 
-# Override ketat khusus mode midday
+# Override ketat khusus mode midday (break sesi 1 ~12:05)
 midday_volume_spike_min: 2.0
 midday_min_score: 70
+
+# Override mode open (09:10) — early, lebih longgar sedikit
+open_volume_spike_min: 1.8
+open_min_score: 55
+
+# Saran Stop Loss / Take Profit (long breakout)
+atr_period: 14
+sl_atr_mult: 1.5
+tp1_rr: 1.5
+tp2_rr: 2.5
 
 # --- Filter likuiditas ---
 min_avg_volume: 500000

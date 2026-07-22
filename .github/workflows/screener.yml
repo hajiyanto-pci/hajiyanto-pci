@@ -2,16 +2,20 @@ name: Stock Screener IDX (online)
 
 on:
   schedule:
-    # 16:20 WIB = 09:20 UTC (Senin-Jumat). Weekend di-skip di script via data.
+    # 09:10 WIB = 02:10 UTC — early open
+    - cron: "10 2 * * 1-5"
+    # 12:05 WIB = 05:05 UTC — break sesi 1
+    - cron: "5 5 * * 1-5"
+    # 16:20 WIB = 09:20 UTC — EOD confirmed
     - cron: "20 9 * * 1-5"
   workflow_dispatch:
     inputs:
       as_of:
-        description: "kosong / kemarin / YYYY-MM-DD"
+        description: "kosong / kemarin / YYYY-MM-DD / 20 july"
         required: false
         default: ""
       mode:
-        description: "eod | morning | midday"
+        description: "eod | open | midday | morning"
         required: false
         default: "eod"
 
@@ -45,10 +49,26 @@ jobs:
             echo "CALLMEBOT_APIKEY=${CALLMEBOT_APIKEY}"
           } > .env
 
+      - name: Resolve mode
+        env:
+          INPUT_MODE: ${{ github.event.inputs.mode }}
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          if [ -n "${INPUT_MODE}" ]; then
+            MODE="${INPUT_MODE}"
+          else
+            case "${SCHEDULE}" in
+              "10 2 * * 1-5") MODE="open" ;;
+              "5 5 * * 1-5") MODE="midday" ;;
+              *) MODE="eod" ;;
+            esac
+          fi
+          echo "MODE=${MODE}" >> "$GITHUB_ENV"
+          echo "Resolved MODE=${MODE} (schedule='${SCHEDULE}')"
+
       - name: Run screener
         env:
           AS_OF: ${{ github.event.inputs.as_of }}
-          MODE: ${{ github.event.inputs.mode || 'eod' }}
         run: |
           ARGS=(--mode "${MODE}" --no-whatsapp)
           if [ -n "${AS_OF}" ]; then
@@ -60,6 +80,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screener-output
+          name: screener-output-${{ github.run_id }}
           path: output/
           if-no-files-found: ignore

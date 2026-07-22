@@ -20,6 +20,7 @@ from screener.indicators import (
     rsi,
     sma,
     stochastic,
+    suggest_sl_tp,
 )
 from screener.schedule import session_progress
 from screener.universe import from_yahoo_symbol
@@ -52,6 +53,13 @@ class Signal:
     score: float
     factor_scores: dict[str, float]
     reasons: list[str]
+    entry: float = 0.0
+    sl: float = 0.0
+    tp1: float = 0.0
+    tp2: float = 0.0
+    risk_pct: float = 0.0
+    tp1_pct: float = 0.0
+    tp2_pct: float = 0.0
     checklist: dict[str, bool] = field(default_factory=dict)
     mode: str = "eod"
 
@@ -135,9 +143,13 @@ def evaluate_symbol(
     stoch_d_period = int(cfg.get("stoch_d_period", 3))
     stoch_max = float(cfg.get("stoch_max", 85))
 
-    if mode == "midday" and as_of is None:
-        vol_min = float(cfg.get("midday_volume_spike_min", max(vol_min, 2.0)))
-        min_score = float(cfg.get("midday_min_score", max(min_score, 70)))
+    if mode in {"midday", "open"} and as_of is None:
+        if mode == "open":
+            vol_min = float(cfg.get("open_volume_spike_min", max(vol_min, 1.8)))
+            min_score = float(cfg.get("open_min_score", max(min_score - 5, 55)))
+        else:
+            vol_min = float(cfg.get("midday_volume_spike_min", max(vol_min, 2.0)))
+            min_score = float(cfg.get("midday_min_score", max(min_score, 70)))
 
     work = _prepare_frame(df, mode, now=now, as_of=as_of)
     need = max(vol_days, res_lookback, rsi_period, ma_period, accum_lookback, 35) + 2
@@ -161,9 +173,11 @@ def evaluate_symbol(
     raw_vol_ratio = last_vol / avg_vol if avg_vol > 0 else 0.0
     vol_ratio = raw_vol_ratio
     projected_note = None
-    if mode == "midday" and as_of is None:
+    if mode in {"midday", "open"} and as_of is None:
         progress = session_progress(now)
-        progress = max(progress, 0.25)
+        # Open (09:10) masih sangat awal → floor lebih rendah
+        floor = 0.12 if mode == "open" else 0.25
+        progress = max(progress, floor)
         projected_vol = last_vol / progress
         vol_ratio = projected_vol / avg_vol if avg_vol > 0 else 0.0
         projected_note = (
@@ -277,8 +291,13 @@ def evaluate_symbol(
         reasons.insert(0, f"Analisa as-of {as_of.isoformat()} (bar {bar_day.isoformat()})")
     elif mode == "morning":
         reasons.insert(0, "Watchlist dari breakout H-1 (siap pantau di open)")
+    elif mode == "open":
+        reasons.insert(0, "Early open 09:10 (volume awal, belum final)")
+        if projected_note:
+            reasons.insert(1, projected_note)
+        score = max(0.0, score - 8)
     elif mode == "midday":
-        reasons.insert(0, "Early alert intraday (belum final sampai EOD)")
+        reasons.insert(0, "Break sesi 1 / midday (volume berjalan, belum final)")
         if projected_note:
             reasons.insert(1, projected_note)
         score = max(0.0, score - 5)
@@ -287,6 +306,22 @@ def evaluate_symbol(
 
     if score < min_score:
         return None
+
+    levels = suggest_sl_tp(
+        last_close,
+        high,
+        low,
+        close,
+        atr_period=int(cfg.get("atr_period", 14)),
+        sl_atr_mult=float(cfg.get("sl_atr_mult", 1.5)),
+        tp1_rr=float(cfg.get("tp1_rr", 1.5)),
+        tp2_rr=float(cfg.get("tp2_rr", 2.5)),
+    )
+    reasons.append(
+        f"SL {levels['sl']:,.0f} (-{levels['risk_pct']:.1f}%) | "
+        f"TP1 {levels['tp1']:,.0f} (+{levels['tp1_pct']:.1f}%) | "
+        f"TP2 {levels['tp2']:,.0f} (+{levels['tp2_pct']:.1f}%)"
+    )
 
     return Signal(
         symbol=from_yahoo_symbol(yahoo_symbol),
@@ -312,6 +347,13 @@ def evaluate_symbol(
         score=round(score, 1),
         factor_scores={k: round(v, 1) for k, v in factor_scores.items()},
         reasons=reasons,
+        entry=levels["entry"],
+        sl=levels["sl"],
+        tp1=levels["tp1"],
+        tp2=levels["tp2"],
+        risk_pct=levels["risk_pct"],
+        tp1_pct=levels["tp1_pct"],
+        tp2_pct=levels["tp2_pct"],
         checklist=checklist,
         mode=mode,
     )
