@@ -74,13 +74,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Ambil TELEGRAM_CHAT_ID: buka bot, tekan Start, lalu jalankan perintah ini",
     )
     parser.add_argument(
+        "--chat-id",
+        help="Set TELEGRAM_CHAT_ID manual (dari @userinfobot) lalu simpan ke .env jika --save-env",
+    )
+    parser.add_argument(
         "--token",
         help="Token bot Telegram (opsional; default dari .env TELEGRAM_BOT_TOKEN)",
     )
     parser.add_argument(
         "--save-env",
         action="store_true",
-        help="Saat --get-chat-id berhasil, simpan token+chat_id ke file .env",
+        help="Simpan token/chat_id ke file .env",
     )
     parser.add_argument(
         "--min-score",
@@ -129,6 +133,20 @@ def main(argv: list[str] | None = None) -> int:
 
     load_dotenv()
 
+    if args.chat_id:
+        token = (args.token or "").strip() or os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+        chat_id = str(args.chat_id).strip()
+        if not token:
+            print("Token belum ada. Pakai --token atau isi TELEGRAM_BOT_TOKEN di .env")
+            return 1
+        print(f"Menggunakan chat_id: {chat_id}")
+        if args.save_env or True:
+            write_telegram_env(token, chat_id)
+        # auto uji setelah set
+        os.environ["TELEGRAM_BOT_TOKEN"] = token
+        os.environ["TELEGRAM_CHAT_ID"] = chat_id
+        return send_test_notifications()
+
     if args.get_chat_id:
         token = (args.token or "").strip() or None
         chat_id = discover_telegram_chat_id(token)
@@ -139,6 +157,9 @@ def main(argv: list[str] | None = None) -> int:
                 "TELEGRAM_BOT_TOKEN", ""
             )
             write_telegram_env(used_token.strip(), chat_id)
+            os.environ["TELEGRAM_BOT_TOKEN"] = used_token.strip()
+            os.environ["TELEGRAM_CHAT_ID"] = chat_id
+            return send_test_notifications()
         return 0
 
     if args.test_notify:
