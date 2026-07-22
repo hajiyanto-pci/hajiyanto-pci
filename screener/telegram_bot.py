@@ -38,6 +38,10 @@ cek 2026-07-20
 /help
 
 Bot memindai: volume, MA, akumulasi, break resistance, stochastic, money-flow, MACD.
+Setiap kandidat disertai saran Entry / SL / TP1 / TP2.
+
+Jadwal otomatis (setelah Actions aktif di main):
+09:10 open | 12:05 break sesi 1 | 16:20 EOD
 """
 
 
