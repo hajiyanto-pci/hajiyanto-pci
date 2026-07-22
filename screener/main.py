@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 
 from screener.data import fetch_history
 from screener.notifier import notify_all
+from screener.schedule import MODES, explain_schedule, recommend_primary_mode
 from screener.signals import screen_all
 from screener.universe import DEFAULT_IDX_SYMBOLS
 
@@ -39,6 +40,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--symbols",
         nargs="+",
         help="Override daftar saham, contoh: BBCA BBRI TLKM",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=MODES,
+        help="Mode notifikasi: morning | midday | eod (default dari config / eod)",
+    )
+    parser.add_argument(
+        "--explain-schedule",
+        action="store_true",
+        help="Tampilkan rekomendasi jadwal pagi/siang/sore lalu keluar",
     )
     parser.add_argument(
         "--min-score",
@@ -70,6 +81,12 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)s: %(message)s",
     )
+
+    if args.explain_schedule:
+        print(explain_schedule())
+        print(f"\nRekomendasi utama: --mode {recommend_primary_mode()}")
+        return 0
+
     load_dotenv()
 
     cfg_path = Path(args.config)
@@ -78,6 +95,12 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     cfg = load_config(cfg_path)
+    mode = (args.mode or cfg.get("mode") or recommend_primary_mode()).lower()
+    if mode not in MODES:
+        print(f"Mode tidak valid: {mode}. Pilih: {', '.join(MODES)}", file=sys.stderr)
+        return 1
+    cfg["mode"] = mode
+
     if args.min_score is not None:
         cfg["min_score"] = args.min_score
     if args.volume_spike is not None:
@@ -89,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     symbols = [str(s).strip().upper() for s in symbols if str(s).strip()]
     market = str(cfg.get("market", "IDX"))
 
-    print(f"Memindai {len(symbols)} saham ({market})...")
+    print(f"Mode: {mode} | Memindai {len(symbols)} saham ({market})...")
     histories = fetch_history(
         symbols,
         history_days=int(cfg.get("history_days", 90)),

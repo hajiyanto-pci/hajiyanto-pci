@@ -16,23 +16,31 @@ from screener.signals import Signal
 
 logger = logging.getLogger(__name__)
 
+MODE_TITLE = {
+    "eod": "EOD Confirmed (sore)",
+    "morning": "Watchlist Pagi (H-1)",
+    "midday": "Early Alert Siang",
+}
+
 
 def notify_all(signals: Iterable[Signal], cfg: dict) -> None:
     signals = list(signals)
+    mode = str(cfg.get("mode", "eod")).lower()
     notify_cfg = cfg.get("notify", {}) or {}
     if notify_cfg.get("console", True):
-        print_console(signals)
+        print_console(signals, mode=mode)
     if notify_cfg.get("save_json", True):
-        save_json(signals, notify_cfg.get("output_dir", "output"))
+        save_json(signals, notify_cfg.get("output_dir", "output"), mode=mode)
     if notify_cfg.get("telegram", True):
-        send_telegram(signals)
+        send_telegram(signals, mode=mode)
 
 
-def print_console(signals: list[Signal]) -> None:
-    print("\n=== HASIL SCREENING SAHAM ===")
+def print_console(signals: list[Signal], mode: str = "eod") -> None:
+    title = MODE_TITLE.get(mode, mode)
+    print(f"\n=== HASIL SCREENING SAHAM — {title} ===")
     print(f"Waktu: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     if not signals:
-        print("Tidak ada saham yang memenuhi kriteria hari ini.")
+        print("Tidak ada saham yang memenuhi kriteria untuk mode ini.")
         return
 
     rows = [
@@ -55,25 +63,30 @@ def print_console(signals: list[Signal]) -> None:
         print(f"- {s.symbol} (skor {s.score}): {'; '.join(s.reasons)}")
 
 
-def save_json(signals: list[Signal], output_dir: str) -> Path:
+def save_json(signals: list[Signal], output_dir: str, mode: str = "eod") -> Path:
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    path = out / f"signals_{stamp}.json"
+    path = out / f"signals_{mode}_{stamp}.json"
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "mode": mode,
         "count": len(signals),
         "signals": [s.to_dict() for s in signals],
     }
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    # Also write latest for easy consumption by cron/automation
-    latest = out / "signals_latest.json"
+    latest = out / f"signals_latest_{mode}.json"
     latest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    # Compatibility with previous filename
+    if mode == "eod":
+        (out / "signals_latest.json").write_text(
+            json.dumps(payload, indent=2), encoding="utf-8"
+        )
     print(f"\nHasil disimpan: {path}")
     return path
 
 
-def send_telegram(signals: list[Signal]) -> bool:
+def send_telegram(signals: list[Signal], mode: str = "eod") -> bool:
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
     if not token or not chat_id:
@@ -86,15 +99,16 @@ def send_telegram(signals: list[Signal]) -> bool:
         )
         return False
 
+    title = MODE_TITLE.get(mode, mode)
     if not signals:
         text = (
-            "📡 *Stock Screener IDX*\n"
+            f"📡 *Stock Screener IDX — {title}*\n"
             f"Waktu: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
-            "Tidak ada saham yang memenuhi kriteria hari ini."
+            "Tidak ada saham yang memenuhi kriteria."
         )
     else:
         lines = [
-            "🚀 *Stock Screener IDX — kandidat naik*",
+            f"🚀 *Stock Screener IDX — {title}*",
             f"Waktu: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
             f"Ditemukan: *{len(signals)}* saham\n",
         ]

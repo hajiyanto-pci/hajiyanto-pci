@@ -2,6 +2,12 @@
 market: IDX
 currency: IDR
 
+# Mode notifikasi default:
+#   eod     = sore setelah close (~16:20) → PALING DIREKOMENDASIKAN
+#   morning = pagi sebelum open (~08:30) → watchlist breakout H-1
+#   midday  = siang (11:00 / 14:00) → early alert volume naik (lebih noisy)
+mode: eod
+
 # Universe saham (kode tanpa .JK). Kosongkan untuk pakai daftar default likuid.
 symbols: []
 
@@ -28,6 +34,10 @@ rsi_max: 75
 ma_period: 20
 # Minimal skor total (0-100) agar masuk alert
 min_score: 60
+
+# Override ketat khusus mode midday (early alert)
+midday_volume_spike_min: 2.0
+midday_min_score: 70
 
 # --- Filter likuiditas ---
 min_avg_volume: 500000
