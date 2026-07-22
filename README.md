@@ -3,12 +3,25 @@
 Alat screening saham BEI (IDX) untuk membantu menemukan kandidat yang **berpotensi naik** berdasarkan:
 
 1. **Volume spike** — volume hari ini jauh di atas rata-rata
-2. **Break resistance** — harga menutup di atas resistance (high N hari terakhir)
-3. **Kualitas momentum** — RSI belum overbought + harga di atas MA
+2. **Di atas MA** — harga close di atas moving average
+3. **Akumulasi** — OBV naik + volume beli dominan
+4. **Break resistance** — harga menutup di atas resistance (high N hari terakhir)
 
-Hasil ditampilkan di terminal, disimpan ke JSON, dan bisa dikirim ke **Telegram**.
+Hasil ditampilkan di terminal, disimpan ke JSON, dan bisa dikirim ke **Telegram** serta **WhatsApp**.
 
 > Catatan: ini alat bantu analisis teknikal, **bukan jaminan** saham akan naik. Selalu kombinasikan dengan riset fundamental & manajemen risiko.
+
+## Notifikasi Telegram / WhatsApp
+
+Panduan lengkap: [`docs/NOTIFIKASI.md`](docs/NOTIFIKASI.md)
+
+```bash
+cp .env.example .env
+# isi TELEGRAM_* dan/atau WHATSAPP_PHONE + CALLMEBOT_APIKEY
+python run_screener.py --setup-notify   # tampilkan panduan
+python run_screener.py --test-notify    # uji kirim pesan
+python run_screener.py --mode eod       # scan + kirim alert
+```
 
 ## Cara kerja skor
 
@@ -34,14 +47,12 @@ cp .env.example .env
 
 ## Notifikasi Telegram (opsional)
 
-1. Chat `@BotFather` → buat bot → salin **token**
-2. Chat bot-mu, lalu dapatkan **chat_id** (mis. via `@userinfobot`)
-3. Isi di `.env`:
+Lihat panduan langkah demi langkah: [`docs/NOTIFIKASI.md`](docs/NOTIFIKASI.md)
 
-```env
-TELEGRAM_BOT_TOKEN=123456:ABC...
-TELEGRAM_CHAT_ID=987654321
-```
+Ringkas:
+1. Telegram: `@BotFather` → token + chat_id
+2. WhatsApp: CallMeBot → `WHATSAPP_PHONE` + `CALLMEBOT_APIKEY`
+3. Uji: `python run_screener.py --test-notify`
 
 ## Kapan notifikasi paling cocok?
 

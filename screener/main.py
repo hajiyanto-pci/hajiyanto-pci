@@ -11,7 +11,7 @@ import yaml
 from dotenv import load_dotenv
 
 from screener.data import fetch_history
-from screener.notifier import notify_all
+from screener.notifier import notify_all, print_setup_guide, send_test_notifications
 from screener.schedule import MODES, explain_schedule, recommend_primary_mode
 from screener.signals import screen_all
 from screener.universe import DEFAULT_IDX_SYMBOLS
@@ -25,8 +25,8 @@ def load_config(path: str | Path) -> dict:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Screening saham IDX: volume spike + break resistance + potensi naik. "
-            "Hasil dikirim ke console / JSON / Telegram."
+            "Screening saham IDX: volume + di atas MA + akumulasi + break resistance. "
+            "Hasil dikirim ke console / JSON / Telegram / WhatsApp."
         )
     )
     parser.add_argument(
@@ -52,6 +52,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Tampilkan rekomendasi jadwal pagi/siang/sore lalu keluar",
     )
     parser.add_argument(
+        "--setup-notify",
+        action="store_true",
+        help="Tampilkan panduan setup Telegram & WhatsApp",
+    )
+    parser.add_argument(
+        "--test-notify",
+        action="store_true",
+        help="Kirim pesan uji ke Telegram/WhatsApp yang sudah dikonfigurasi",
+    )
+    parser.add_argument(
         "--min-score",
         type=float,
         help="Override skor minimum",
@@ -65,6 +75,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--no-telegram",
         action="store_true",
         help="Nonaktifkan kirim Telegram untuk run ini",
+    )
+    parser.add_argument(
+        "--no-whatsapp",
+        action="store_true",
+        help="Nonaktifkan kirim WhatsApp untuk run ini",
     )
     parser.add_argument(
         "-v",
@@ -87,7 +102,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\nRekomendasi utama: --mode {recommend_primary_mode()}")
         return 0
 
+    if args.setup_notify:
+        print_setup_guide()
+        return 0
+
     load_dotenv()
+
+    if args.test_notify:
+        return send_test_notifications()
 
     cfg_path = Path(args.config)
     if not cfg_path.exists():
@@ -107,6 +129,8 @@ def main(argv: list[str] | None = None) -> int:
         cfg["volume_spike_min"] = args.volume_spike
     if args.no_telegram:
         cfg.setdefault("notify", {})["telegram"] = False
+    if args.no_whatsapp:
+        cfg.setdefault("notify", {})["whatsapp"] = False
 
     symbols = args.symbols or cfg.get("symbols") or DEFAULT_IDX_SYMBOLS
     symbols = [str(s).strip().upper() for s in symbols if str(s).strip()]

@@ -32,6 +32,11 @@ rsi_period: 14
 rsi_max: 75
 # Momentum: close di atas MA
 ma_period: 20
+# Wajib di atas MA agar masuk alert
+require_above_ma: true
+# Deteksi akumulasi (OBV naik + volume beli dominan)
+accumulation_lookback: 10
+require_accumulation: true
 # Minimal skor total (0-100) agar masuk alert
 min_score: 60
 
@@ -43,9 +48,10 @@ midday_min_score: 70
 min_avg_volume: 500000
 min_price: 50
 
-# Notifikasi
+# Notifikasi (isi kredensial di .env — lihat docs/NOTIFIKASI.md)
 notify:
   console: true
   telegram: true
+  whatsapp: true
   save_json: true
   output_dir: output
