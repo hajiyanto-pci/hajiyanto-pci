@@ -69,28 +69,12 @@ def _bar_date(idx_value) -> datetime.date:
 
 
 def parse_as_of(value: str | None, *, now: datetime | None = None) -> datetime.date | None:
-    """Parse 'yesterday' / 'kemarin' / 'YYYY-MM-DD' menjadi tanggal Jakarta.
-
-    'kemarin' = sesi bursa sebelumnya (lewati Sabtu/Minggu).
-    """
-    from datetime import timedelta
+    """Parse tanggal natural/ISO menjadi date Jakarta. Lihat screener.dates."""
+    from screener.dates import parse_natural_date
 
     if value is None or str(value).strip() == "":
         return None
-    raw = str(value).strip().lower()
-    if now is None:
-        now = datetime.now(JAKARTA)
-    elif now.tzinfo is None:
-        now = now.replace(tzinfo=JAKARTA)
-    else:
-        now = now.astimezone(JAKARTA)
-
-    if raw in {"yesterday", "kemarin", "h-1", "prev", "last", "last-session"}:
-        d = now.date() - timedelta(days=1)
-        while d.weekday() >= 5:
-            d -= timedelta(days=1)
-        return d
-    return datetime.strptime(raw, "%Y-%m-%d").date()
+    return parse_natural_date(value, now=now)
 
 
 def slice_as_of(df: pd.DataFrame, as_of: datetime.date | None) -> pd.DataFrame:

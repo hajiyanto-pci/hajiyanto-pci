@@ -25,15 +25,11 @@ Setelah `python run_bot.py` berjalan (atau Cloud Agent online), chat `@Sahamgaco
 ```
 /start
 /kemarin
-/cek 2026-07-21
+cek tanggal 20 july
+cek 20 juli 2026
+cek 20/07/2026
 /hariini
 /help
-```
-
-Atau teks bebas:
-```
-cek kemarin
-cek 2026-07-21
 ```
 
 ## Cara kerja skor

@@ -3,12 +3,10 @@
 Contoh chat ke @Sahamgacor_bot:
   /start
   /kemarin
-  /cek 2026-07-21
+  cek tanggal 20 july
+  cek 20 juli 2026
+  /cek 20/07/2026
   /hariini
-  /help
-
-Jalankan online (proses harus hidup):
-  python run_bot.py
 """
 
 from __future__ import annotations
@@ -21,25 +19,23 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
+from screener.dates import extract_date_query
 from screener.notifier import build_message
 from screener.runner import run_screen
-from screener.signals import parse_as_of
 
 logger = logging.getLogger(__name__)
 
 HELP_TEXT = """📈 Saham Gacor Bot
 
-Kirim perintah:
+Contoh chat (bebas format tanggal):
 
-/kemarin — analisa sesi bursa sebelumnya
-/cek 2026-07-21 — analisa tanggal tertentu
-/hariini — analisa data terbaru
-/help — bantuan ini
-
-Contoh:
 /kemarin
-/cek 2026-07-21
-/cek kemarin
+cek tanggal 20 july
+cek 20 juli
+cek 20/07/2026
+cek 2026-07-20
+/hariini
+/help
 
 Bot memindai: volume, MA, akumulasi, break resistance, stochastic, money-flow, MACD.
 """
@@ -55,7 +51,7 @@ def _api(token: str, method: str, **params: Any) -> dict:
     return data["result"]
 
 
-def send_text(token: str, chat_id: str | int, text: str, *, markdown: bool = True) -> None:
+def send_text(token: str, chat_id: str | int, text: str, *, markdown: bool = False) -> None:
     chunks = []
     while text:
         chunks.append(text[:3500])
@@ -71,62 +67,31 @@ def send_text(token: str, chat_id: str | int, text: str, *, markdown: bool = Tru
         try:
             _api(token, "sendMessage", **payload)
         except Exception:
-            # Fallback plain text jika Markdown gagal parse
             payload.pop("parse_mode", None)
             _api(token, "sendMessage", **payload)
 
 
 def handle_command(token: str, chat_id: str | int, text: str) -> None:
     raw = (text or "").strip()
-    lower = raw.lower()
-    parts = lower.split()
-    cmd = parts[0] if parts else ""
-
-    if cmd in {"/start", "/help", "help", "bantuan"}:
-        send_text(token, chat_id, HELP_TEXT)
+    try:
+        label, as_of_date = extract_date_query(raw)
+    except ValueError as exc:
+        msg = str(exc)
+        if msg == "__HELP__":
+            send_text(token, chat_id, HELP_TEXT)
+            return
+        send_text(token, chat_id, f"{msg}\n\n{HELP_TEXT}")
         return
 
-    as_of: str | None = None
-    label = "terbaru"
-
-    if cmd in {"/kemarin", "kemarin", "/yesterday"}:
-        as_of = "kemarin"
-        label = "kemarin"
-    elif cmd in {"/hariini", "/today", "hariini"}:
-        as_of = None
-        label = "hari ini / terbaru"
-    elif cmd in {"/cek", "cek", "/asof"}:
-        if len(parts) < 2:
-            send_text(
-                token,
-                chat_id,
-                "Format: `/cek 2026-07-21` atau `/cek kemarin`",
-            )
-            return
-        as_of = parts[1]
-        label = as_of
-    else:
-        # Izinkan teks bebas: "cek kemarin" / "cek 2026-07-21"
-        if lower.startswith("cek "):
-            as_of = lower.split(maxsplit=1)[1].strip()
-            label = as_of
-        else:
-            send_text(
-                token,
-                chat_id,
-                "Perintah tidak dikenali.\n\n" + HELP_TEXT,
-            )
-            return
-
+    as_of_arg = as_of_date.isoformat() if as_of_date is not None else None
     send_text(
         token,
         chat_id,
-        f"⏳ Memindai saham potensi naik (*{label}*)...\nTunggu 10–40 detik.",
+        f"⏳ Memindai saham potensi naik ({label})...\nTunggu 10–40 detik.",
     )
     try:
-        parsed = parse_as_of(as_of) if as_of else None
         signals = run_screen(
-            as_of=as_of,
+            as_of=as_of_arg,
             mode="eod",
             notify=False,
             telegram=False,
@@ -135,33 +100,28 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
         msg = build_message(
             signals,
             mode="eod",
-            markdown=True,
-            as_of=parsed.isoformat() if parsed else None,
+            markdown=False,
+            as_of=as_of_arg,
         )
         if not signals:
-            msg += (
-                "\n\n_Tidak ada yang lolos filter multi-faktor. "
-                "Coba tanggal lain._"
-            )
+            msg += "\n\nTidak ada yang lolos filter. Coba tanggal lain."
         send_text(token, chat_id, msg)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Gagal proses perintah")
-        send_text(token, chat_id, f"❌ Gagal analisa: `{exc}`")
+        send_text(token, chat_id, f"❌ Gagal analisa: {exc}")
 
 
 def poll_forever(token: str, allowed_chat_id: str | None = None) -> None:
-    """Long-polling update Telegram."""
-    # Hapus webhook agar getUpdates jalan
     try:
         _api(token, "deleteWebhook", drop_pending_updates=False)
     except Exception:  # noqa: BLE001
         pass
 
     offset = None
-    print("Bot online. Chat contoh ke bot:")
+    print("Bot online. Contoh chat:")
     print("  /kemarin")
-    print("  /cek 2026-07-21")
-    print("  /hariini")
+    print("  cek tanggal 20 july")
+    print("  cek 20/07/2026")
     print("Menunggu pesan... (Ctrl+C untuk stop)")
 
     while True:
