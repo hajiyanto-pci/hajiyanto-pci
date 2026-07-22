@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -134,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
         if not chat_id:
             return 1
         if args.save_env:
-            used_token = (args.token or "").strip() or __import__("os").getenv(
+            used_token = (args.token or "").strip() or os.getenv(
                 "TELEGRAM_BOT_TOKEN", ""
             )
             write_telegram_env(used_token.strip(), chat_id)

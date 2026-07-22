@@ -10,24 +10,41 @@ isi kredensial di file `.env`, lalu jalankan screener.
 
 ## 1) Setup Telegram (disarankan, paling mudah)
 
+### A. Buat bot + token
 1. Buka Telegram, chat **@BotFather**
 2. Kirim `/newbot` → ikuti instruksi → salin **token** bot
-3. Chat bot yang baru dibuat (kirim `/start`)
-4. Dapatkan **chat_id**:
-   - cara cepat: chat **@userinfobot** → salin Id, atau
-   - buka: `https://api.telegram.org/bot<TOKEN>/getUpdates` setelah kamu chat bot
-5. Isi `.env`:
 
+### B. Ambil chat_id (dari awal)
+Chat ID **baru muncul setelah kamu menekan Start** di bot.
+
+1. Buka bot kamu, contoh: https://t.me/Sahamgacor_bot
+2. Tekan **Start** atau kirim `/start`
+3. Di komputer/repo, jalankan:
+
+```bash
+python run_screener.py --get-chat-id --token "ISI_TOKEN_BOT_DISINI" --save-env
+```
+
+Perintah itu akan menunggu, lalu menampilkan `chat_id` dan menyimpannya ke `.env`.
+
+**Cara manual (tanpa script):**
+1. Setelah `/start` di bot, buka di browser:
+   `https://api.telegram.org/bot<TOKEN>/getUpdates`
+2. Cari angka di `"chat":{"id": 123456789` → itu `chat_id`-mu
+
+### C. Isi `.env`
 ```env
 TELEGRAM_BOT_TOKEN=123456789:AA...token...
 TELEGRAM_CHAT_ID=987654321
 ```
 
-6. Uji:
-
+### D. Uji kirim
 ```bash
 python run_screener.py --test-notify
 ```
+
+> Keamanan: jangan kirim token bot ke orang lain / chat publik.
+> Jika token sudah terekspos, di @BotFather kirim `/revoke` lalu buat token baru.
 
 ## 2) Setup WhatsApp via CallMeBot (gratis, pribadi)
 
