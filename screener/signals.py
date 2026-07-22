@@ -1,4 +1,4 @@
-"""Logika screening: volume, MA, akumulasi, break resistance."""
+"""Logika screening multi-faktor untuk potensi kenaikan harga."""
 
 from __future__ import annotations
 
@@ -11,11 +11,15 @@ import numpy as np
 import pandas as pd
 
 from screener.indicators import (
+    bandar_flow_score,
+    bollinger,
     is_accumulating,
+    macd,
     pct_change,
     resistance_level,
     rsi,
     sma,
+    stochastic,
 )
 from screener.schedule import session_progress
 from screener.universe import from_yahoo_symbol
@@ -32,12 +36,21 @@ class Signal:
     resistance: float
     breakout_pct: float
     rsi: float
+    stoch_k: float
+    stoch_d: float
+    cmf: float
+    mfi: float
+    macd_hist: float
     ma: float
     above_ma: bool
     accumulating: bool
     breakout: bool
     volume_ok: bool
+    stoch_ok: bool
+    money_flow_ok: bool
+    macd_ok: bool
     score: float
+    factor_scores: dict[str, float]
     reasons: list[str]
     checklist: dict[str, bool] = field(default_factory=dict)
     mode: str = "eod"
@@ -60,7 +73,7 @@ def parse_as_of(value: str | None, *, now: datetime | None = None) -> datetime.d
 
     'kemarin' = sesi bursa sebelumnya (lewati Sabtu/Minggu).
     """
-    from datetime import date, timedelta
+    from datetime import timedelta
 
     if value is None or str(value).strip() == "":
         return None
@@ -74,15 +87,13 @@ def parse_as_of(value: str | None, *, now: datetime | None = None) -> datetime.d
 
     if raw in {"yesterday", "kemarin", "h-1", "prev", "last", "last-session"}:
         d = now.date() - timedelta(days=1)
-        # Lewati weekend; hari libur nasional tetap perlu tanggal eksplisit
-        while d.weekday() >= 5:  # 5=Sabtu, 6=Minggu
+        while d.weekday() >= 5:
             d -= timedelta(days=1)
         return d
     return datetime.strptime(raw, "%Y-%m-%d").date()
 
 
 def slice_as_of(df: pd.DataFrame, as_of: datetime.date | None) -> pd.DataFrame:
-    """Potong data sampai tanggal as_of (inklusif), untuk analisa hari kemarin/dll."""
     if df is None or df.empty or as_of is None:
         return df
     mask = [_bar_date(i) <= as_of for i in df.index]
@@ -95,10 +106,8 @@ def _prepare_frame(
     now: datetime | None = None,
     as_of: datetime.date | None = None,
 ) -> pd.DataFrame:
-    """Siapkan frame: as_of (analisa tanggal) atau morning (pakai H-1)."""
     if df is None or df.empty:
         return df
-
     if as_of is not None:
         return slice_as_of(df, as_of)
 
@@ -136,18 +145,24 @@ def evaluate_symbol(
     accum_lookback = int(cfg.get("accumulation_lookback", 10))
     require_above_ma = bool(cfg.get("require_above_ma", True))
     require_accumulation = bool(cfg.get("require_accumulation", True))
+    require_stoch = bool(cfg.get("require_stoch", False))
+    require_money_flow = bool(cfg.get("require_money_flow", True))
+    stoch_k_period = int(cfg.get("stoch_k_period", 14))
+    stoch_d_period = int(cfg.get("stoch_d_period", 3))
+    stoch_max = float(cfg.get("stoch_max", 85))
 
     if mode == "midday" and as_of is None:
         vol_min = float(cfg.get("midday_volume_spike_min", max(vol_min, 2.0)))
         min_score = float(cfg.get("midday_min_score", max(min_score, 70)))
 
     work = _prepare_frame(df, mode, now=now, as_of=as_of)
-    need = max(vol_days, res_lookback, rsi_period, ma_period, accum_lookback) + 2
+    need = max(vol_days, res_lookback, rsi_period, ma_period, accum_lookback, 35) + 2
     if work is None or len(work) < need:
         return None
 
     close = work["Close"].astype(float)
     high = work["High"].astype(float)
+    low = work["Low"].astype(float)
     volume = work["Volume"].astype(float)
 
     last_close = float(close.iloc[-1])
@@ -162,7 +177,7 @@ def evaluate_symbol(
     raw_vol_ratio = last_vol / avg_vol if avg_vol > 0 else 0.0
     vol_ratio = raw_vol_ratio
     projected_note = None
-    if mode == "midday":
+    if mode == "midday" and as_of is None:
         progress = session_progress(now)
         progress = max(progress, 0.25)
         projected_vol = last_vol / progress
@@ -187,6 +202,42 @@ def evaluate_symbol(
     last_ma = float(ma_series.iloc[-1]) if np.isfinite(ma_series.iloc[-1]) else last_close
     above_ma = last_close > last_ma
 
+    k_series, d_series = stochastic(
+        high, low, close, k_period=stoch_k_period, d_period=stoch_d_period
+    )
+    last_k = float(k_series.iloc[-1]) if np.isfinite(k_series.iloc[-1]) else 50.0
+    last_d = float(d_series.iloc[-1]) if np.isfinite(d_series.iloc[-1]) else 50.0
+    prev_k = float(k_series.iloc[-2]) if len(k_series) > 1 and np.isfinite(k_series.iloc[-2]) else last_k
+    prev_d = float(d_series.iloc[-2]) if len(d_series) > 1 and np.isfinite(d_series.iloc[-2]) else last_d
+    stoch_cross_up = prev_k <= prev_d and last_k > last_d
+    stoch_ok = last_k <= stoch_max and (stoch_cross_up or 20 <= last_k <= 80)
+
+    macd_line, macd_sig, macd_hist = macd(close)
+    last_hist = (
+        float(macd_hist.iloc[-1]) if np.isfinite(macd_hist.iloc[-1]) else 0.0
+    )
+    prev_hist = (
+        float(macd_hist.iloc[-2])
+        if len(macd_hist) > 1 and np.isfinite(macd_hist.iloc[-2])
+        else last_hist
+    )
+    macd_ok = last_hist > 0 or last_hist > prev_hist
+
+    money_ok, money_pts, money_note = bandar_flow_score(high, low, close, volume)
+    # Ambil CMF/MFI terakhir untuk ditampilkan
+    from screener.indicators import chaikin_money_flow, money_flow_index
+
+    cmf_v = float(chaikin_money_flow(high, low, close, volume).iloc[-1] or 0)
+    if not np.isfinite(cmf_v):
+        cmf_v = 0.0
+    mfi_v = float(money_flow_index(high, low, close, volume).iloc[-1] or 50)
+    if not np.isfinite(mfi_v):
+        mfi_v = 50.0
+
+    upper, mid_bb, _lower = bollinger(close)
+    last_upper = float(upper.iloc[-1]) if np.isfinite(upper.iloc[-1]) else last_close
+    bb_break = last_close >= last_upper * 0.995
+
     accumulating, accum_note = is_accumulating(close, volume, lookback=accum_lookback)
     volume_ok = vol_ratio >= vol_min
 
@@ -195,9 +246,11 @@ def evaluate_symbol(
         "above_ma": above_ma,
         "accumulation": accumulating,
         "breakout": is_breakout,
+        "stochastic": stoch_ok,
+        "money_flow": money_ok,
+        "macd": macd_ok,
     }
 
-    # Hard filters sesuai kriteria user
     if not volume_ok:
         return None
     if not is_breakout:
@@ -206,10 +259,14 @@ def evaluate_symbol(
         return None
     if require_accumulation and not accumulating:
         return None
+    if require_stoch and not stoch_ok:
+        return None
+    if require_money_flow and not money_ok:
+        return None
     if last_rsi > rsi_max:
         return None
 
-    score, reasons = _score(
+    score, factor_scores, reasons = _score_multifactor(
         vol_ratio=vol_ratio,
         vol_min=vol_min,
         breakout_pct=breakout_pct,
@@ -220,6 +277,15 @@ def evaluate_symbol(
         accum_note=accum_note,
         last_close=last_close,
         last_ma=last_ma,
+        last_k=last_k,
+        last_d=last_d,
+        stoch_cross_up=stoch_cross_up,
+        stoch_ok=stoch_ok,
+        money_pts=money_pts,
+        money_note=money_note,
+        macd_ok=macd_ok,
+        last_hist=last_hist,
+        bb_break=bb_break,
     )
 
     if as_of is not None:
@@ -233,7 +299,7 @@ def evaluate_symbol(
             reasons.insert(1, projected_note)
         score = max(0.0, score - 5)
     else:
-        reasons.insert(0, "Sinyal EOD confirmed (close & volume final)")
+        reasons.insert(0, "Sinyal EOD confirmed (multi-faktor)")
 
     if score < min_score:
         return None
@@ -246,19 +312,28 @@ def evaluate_symbol(
         resistance=round(resist, 2),
         breakout_pct=round(breakout_pct, 2),
         rsi=round(last_rsi, 1),
+        stoch_k=round(last_k, 1),
+        stoch_d=round(last_d, 1),
+        cmf=round(cmf_v, 3),
+        mfi=round(mfi_v, 1),
+        macd_hist=round(last_hist, 4),
         ma=round(last_ma, 2),
         above_ma=above_ma,
         accumulating=accumulating,
         breakout=is_breakout,
         volume_ok=volume_ok,
+        stoch_ok=stoch_ok,
+        money_flow_ok=money_ok,
+        macd_ok=macd_ok,
         score=round(score, 1),
+        factor_scores={k: round(v, 1) for k, v in factor_scores.items()},
         reasons=reasons,
         checklist=checklist,
         mode=mode,
     )
 
 
-def _score(
+def _score_multifactor(
     *,
     vol_ratio: float,
     vol_min: float,
@@ -270,61 +345,109 @@ def _score(
     accum_note: str,
     last_close: float,
     last_ma: float,
-) -> tuple[float, list[str]]:
-    """Skor 0-100: volume + breakout + RSI + MA + akumulasi."""
-    reasons: list[str] = []
-    score = 0.0
+    last_k: float,
+    last_d: float,
+    stoch_cross_up: bool,
+    stoch_ok: bool,
+    money_pts: float,
+    money_note: str,
+    macd_ok: bool,
+    last_hist: float,
+    bb_break: bool,
+) -> tuple[float, dict[str, float], list[str]]:
+    """Formula skor 0-100 multi-faktor.
 
-    # Volume (max 30)
+    Bobot default:
+      Volume 20 | Breakout 18 | Money-flow/bandar 15 | Akumulasi OBV 12
+      Stochastic 12 | MACD 8 | RSI 8 | MA 7
+    """
+    reasons: list[str] = []
+    factors: dict[str, float] = {}
+
+    # Volume (20)
     if vol_ratio >= vol_min * 3:
-        score += 30
-        reasons.append(f"Volume sangat tinggi ({vol_ratio:.1f}x rata-rata)")
+        factors["volume"] = 20
+        reasons.append(f"Volume sangat tinggi ({vol_ratio:.1f}x)")
     elif vol_ratio >= vol_min * 2:
-        score += 24
-        reasons.append(f"Volume tinggi ({vol_ratio:.1f}x rata-rata)")
+        factors["volume"] = 16
+        reasons.append(f"Volume tinggi ({vol_ratio:.1f}x)")
     else:
-        score += 16
+        factors["volume"] = 11
         reasons.append(f"Volume di atas rata-rata ({vol_ratio:.1f}x)")
 
-    # Breakout (max 25)
+    # Breakout (18)
     if breakout_pct >= 3:
-        score += 25
+        factors["breakout"] = 18
         reasons.append(f"Break resistance kuat (+{breakout_pct:.1f}%)")
     elif breakout_pct >= 1:
-        score += 20
+        factors["breakout"] = 14
         reasons.append(f"Break resistance (+{breakout_pct:.1f}%)")
     else:
-        score += 14
+        factors["breakout"] = 10
         reasons.append(f"Break resistance tipis (+{breakout_pct:.1f}%)")
+    if bb_break:
+        factors["breakout"] = min(18.0, factors["breakout"] + 2)
+        reasons.append("Dekat/tembus Bollinger upper")
 
-    # Akumulasi (max 20)
+    # Money flow / proksi bandar (15)
+    factors["money_flow"] = float(money_pts)
+    reasons.append(money_note)
+
+    # Akumulasi OBV (12)
     if accumulating:
-        score += 20
+        factors["accumulation"] = 12
         reasons.append(accum_note)
     else:
-        score += 0
+        factors["accumulation"] = 0
         reasons.append(accum_note)
 
-    # RSI (max 15)
+    # Stochastic (12)
+    if stoch_cross_up and last_k < 80:
+        factors["stochastic"] = 12
+        reasons.append(f"Stoch golden-cross (%K {last_k:.0f} > %D {last_d:.0f})")
+    elif 20 <= last_k <= 70 and last_k >= last_d:
+        factors["stochastic"] = 9
+        reasons.append(f"Stoch bullish (%K {last_k:.0f})")
+    elif stoch_ok:
+        factors["stochastic"] = 5
+        reasons.append(f"Stoch ok (%K {last_k:.0f})")
+    else:
+        factors["stochastic"] = 0
+        reasons.append(f"Stoch lemah/overbought (%K {last_k:.0f})")
+
+    # MACD (8)
+    if macd_ok and last_hist > 0:
+        factors["macd"] = 8
+        reasons.append("MACD histogram positif")
+    elif macd_ok:
+        factors["macd"] = 5
+        reasons.append("MACD membaik")
+    else:
+        factors["macd"] = 0
+        reasons.append("MACD belum mendukung")
+
+    # RSI (8)
     if 50 <= last_rsi <= 65:
-        score += 15
+        factors["rsi"] = 8
         reasons.append(f"RSI sehat ({last_rsi:.0f})")
     elif 45 <= last_rsi < 50 or 65 < last_rsi <= rsi_max:
-        score += 10
+        factors["rsi"] = 5
         reasons.append(f"RSI masih ok ({last_rsi:.0f})")
     else:
-        score += 5
+        factors["rsi"] = 2
         reasons.append(f"RSI ({last_rsi:.0f})")
 
-    # MA (max 10)
+    # MA (7)
     if above_ma:
         ma_gap = pct_change(last_close, last_ma)
-        score += 10 if ma_gap >= 1 else 7
+        factors["ma"] = 7 if ma_gap >= 1 else 5
         reasons.append("Harga di atas MA")
     else:
+        factors["ma"] = 0
         reasons.append("Harga di bawah MA")
 
-    return min(score, 100.0), reasons
+    score = float(sum(factors.values()))
+    return min(score, 100.0), factors, reasons
 
 
 def screen_all(

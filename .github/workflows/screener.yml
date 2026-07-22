@@ -1,0 +1,65 @@
+name: Stock Screener IDX (online)
+
+on:
+  schedule:
+    # 16:20 WIB = 09:20 UTC (Senin-Jumat). Weekend di-skip di script via data.
+    - cron: "20 9 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      as_of:
+        description: "kosong / kemarin / YYYY-MM-DD"
+        required: false
+        default: ""
+      mode:
+        description: "eod | morning | midday"
+        required: false
+        default: "eod"
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write .env from secrets
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
+        run: |
+          {
+            echo "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}"
+            echo "TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}"
+            echo "WHATSAPP_PHONE=${WHATSAPP_PHONE}"
+            echo "CALLMEBOT_APIKEY=${CALLMEBOT_APIKEY}"
+          } > .env
+
+      - name: Run screener
+        env:
+          AS_OF: ${{ github.event.inputs.as_of }}
+          MODE: ${{ github.event.inputs.mode || 'eod' }}
+        run: |
+          ARGS=(--mode "${MODE}" --no-whatsapp)
+          if [ -n "${AS_OF}" ]; then
+            ARGS+=(--as-of "${AS_OF}")
+          fi
+          python run_screener.py "${ARGS[@]}"
+
+      - name: Upload JSON artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screener-output
+          path: output/
+          if-no-files-found: ignore

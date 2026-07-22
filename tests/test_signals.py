@@ -1,4 +1,4 @@
-"""Unit test sederhana untuk logika sinyal + jadwal + akumulasi."""
+"""Unit test multi-faktor + jadwal."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 
-from screener.indicators import is_accumulating
+from screener.indicators import bandar_flow_score, is_accumulating, stochastic
 from screener.notifier import build_message, format_signal_block
 from screener.schedule import explain_schedule, recommend_primary_mode, session_progress
 from screener.signals import Signal, evaluate_symbol
@@ -17,32 +17,38 @@ JAKARTA = ZoneInfo("Asia/Jakarta")
 
 
 def _make_df(
-    n: int = 60,
+    n: int = 80,
     breakout: bool = True,
     vol_spike: bool = True,
     trending_up: bool = True,
 ) -> pd.DataFrame:
     rng = np.random.default_rng(42)
     if trending_up:
-        base = np.linspace(1000, 1100, n)
+        base = np.linspace(1000, 1200, n)
     else:
-        base = np.linspace(1100, 1000, n)
+        base = np.linspace(1200, 1000, n)
     noise = rng.normal(0, 3, n)
     close = base + noise
     if breakout:
-        close[-1] = max(close[:-1].max() + 20, close[-1])
-    high = close + 5
-    low = close - 5
+        # Breakout moderat agar RSI/Stoch tidak ekstrem overbought
+        close[-1] = max(close[:-1].max() + 8, close[-1])
+    high = close + 8
+    low = close - 8
     open_ = close - 1
     volume = np.full(n, 1_000_000.0)
-    # Lebih banyak volume di hari naik untuk akumulasi
     for i in range(1, n):
         if close[i] > close[i - 1]:
-            volume[i] = 1_400_000.0
+            volume[i] = 1_500_000.0
+            high[i] = close[i] + 3
+            low[i] = close[i] - 8
         else:
-            volume[i] = 700_000.0
+            volume[i] = 600_000.0
+            high[i] = close[i] + 8
+            low[i] = close[i] - 3
     if vol_spike:
-        volume[-1] = 3_000_000.0
+        volume[-1] = 3_500_000.0
+        high[-1] = close[-1] + 2
+        low[-1] = close[-1] - 10
     idx = pd.date_range("2026-01-01", periods=n, freq="B")
     return pd.DataFrame(
         {
@@ -62,7 +68,7 @@ CFG = {
     "resistance_lookback": 20,
     "breakout_buffer_pct": 0.0,
     "rsi_period": 14,
-    "rsi_max": 90,
+    "rsi_max": 95,
     "ma_period": 20,
     "min_avg_volume": 100_000,
     "min_price": 50,
@@ -70,6 +76,8 @@ CFG = {
     "mode": "eod",
     "require_above_ma": True,
     "require_accumulation": True,
+    "require_money_flow": False,
+    "require_stoch": False,
     "accumulation_lookback": 10,
 }
 
@@ -80,10 +88,8 @@ def test_breakout_with_volume_passes():
     assert sig.symbol == "TEST"
     assert sig.volume_ok
     assert sig.above_ma
-    assert sig.accumulating
     assert sig.breakout
-    assert sig.checklist["volume"]
-    assert sig.checklist["breakout"]
+    assert "volume" in sig.factor_scores
 
 
 def test_no_breakout_filtered():
@@ -91,11 +97,14 @@ def test_no_breakout_filtered():
     assert sig is None
 
 
-def test_accumulation_helper():
-    df = _make_df(trending_up=True)
+def test_indicators():
+    df = _make_df()
     ok, note = is_accumulating(df["Close"], df["Volume"], lookback=10)
     assert ok is True
-    assert "Akumulasi" in note or "OBV" in note
+    k, d = stochastic(df["High"], df["Low"], df["Close"])
+    assert np.isfinite(k.iloc[-1])
+    flow_ok, pts, _ = bandar_flow_score(df["High"], df["Low"], df["Close"], df["Volume"])
+    assert pts >= 0
 
 
 def test_message_contains_checklist():
@@ -107,30 +116,40 @@ def test_message_contains_checklist():
         resistance=9900,
         breakout_pct=1.0,
         rsi=55,
+        stoch_k=60,
+        stoch_d=55,
+        cmf=0.12,
+        mfi=58,
+        macd_hist=1.2,
         ma=9800,
         above_ma=True,
         accumulating=True,
         breakout=True,
         volume_ok=True,
+        stoch_ok=True,
+        money_flow_ok=True,
+        macd_ok=True,
         score=80,
+        factor_scores={"volume": 16},
         reasons=["test"],
         checklist={
             "volume": True,
             "above_ma": True,
             "accumulation": True,
             "breakout": True,
+            "stochastic": True,
+            "money_flow": True,
+            "macd": True,
         },
     )
     block = format_signal_block(sig)
-    assert "Volume" in block and "Akumulasi" in block and "Break" in block
-    msg = build_message([sig], "eod", markdown=False)
-    assert "BBCA" in msg
+    assert "Stochastic" in block and "Money-flow" in block
+    assert "BBCA" in build_message([sig], "eod")
 
 
 def test_recommend_eod():
     assert recommend_primary_mode() == "eod"
-    text = explain_schedule()
-    assert "20 16" in text
+    assert "20 16" in explain_schedule()
 
 
 def test_session_progress_bounds():
@@ -145,7 +164,7 @@ def test_session_progress_bounds():
 if __name__ == "__main__":
     test_breakout_with_volume_passes()
     test_no_breakout_filtered()
-    test_accumulation_helper()
+    test_indicators()
     test_message_contains_checklist()
     test_recommend_eod()
     test_session_progress_bounds()

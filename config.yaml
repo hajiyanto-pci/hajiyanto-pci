@@ -1,4 +1,4 @@
-# Konfigurasi Stock Screener IDX
+# Konfigurasi Stock Screener IDX (multi-faktor)
 market: IDX
 currency: IDR
 
@@ -12,35 +12,35 @@ mode: eod
 symbols: []
 
 # Lookback data harian
-history_days: 90
+history_days: 120
 
 # --- Kriteria volume ---
-# Volume hari ini vs rata-rata N hari
 volume_avg_days: 20
-# Minimal kelipatan volume vs rata-rata (contoh: 1.5 = 150%)
 volume_spike_min: 1.5
 
 # --- Break resistance ---
-# Resistance = highest high N hari (exclude hari ini)
 resistance_lookback: 20
-# Toleransi breakout: close harus >= resistance * (1 + buffer)
 breakout_buffer_pct: 0.0
 
-# --- Potensi naik / kualitas sinyal ---
-# RSI tidak boleh terlalu overbought
+# --- Momentum / oscillator ---
 rsi_period: 14
 rsi_max: 75
-# Momentum: close di atas MA
 ma_period: 20
-# Wajib di atas MA agar masuk alert
 require_above_ma: true
-# Deteksi akumulasi (OBV naik + volume beli dominan)
+stoch_k_period: 14
+stoch_d_period: 3
+stoch_max: 85
+require_stoch: false
+
+# --- Akumulasi & money-flow (proksi bandarmology) ---
 accumulation_lookback: 10
 require_accumulation: true
-# Minimal skor total (0-100) agar masuk alert
-min_score: 60
+require_money_flow: true
 
-# Override ketat khusus mode midday (early alert)
+# Minimal skor total (0-100) agar masuk alert
+min_score: 62
+
+# Override ketat khusus mode midday
 midday_volume_spike_min: 2.0
 midday_min_score: 70
 
@@ -48,7 +48,7 @@ midday_min_score: 70
 min_avg_volume: 500000
 min_price: 50
 
-# Notifikasi (isi kredensial di .env — lihat docs/NOTIFIKASI.md)
+# Notifikasi (isi kredensial di .env / GitHub Secrets)
 notify:
   console: true
   telegram: true

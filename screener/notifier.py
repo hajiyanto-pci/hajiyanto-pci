@@ -50,21 +50,29 @@ def _mark(ok: bool) -> str:
 
 
 def format_signal_block(s: Signal, *, markdown: bool = False) -> str:
-    """Blok teks 1 saham dengan checklist kriteria."""
+    """Blok teks 1 saham dengan checklist kriteria multi-faktor."""
     c = s.checklist or {
         "volume": s.volume_ok,
         "above_ma": s.above_ma,
         "accumulation": s.accumulating,
         "breakout": s.breakout,
+        "stochastic": getattr(s, "stoch_ok", False),
+        "money_flow": getattr(s, "money_flow_ok", False),
+        "macd": getattr(s, "macd_ok", False),
     }
     name = f"*{s.symbol}*" if markdown else s.symbol
+    stoch_k = getattr(s, "stoch_k", 0)
+    cmf = getattr(s, "cmf", 0)
     lines = [
         f"{name} | skor {s.score} | harga {s.price:,.0f}",
         f"{_mark(c.get('volume', False))} Volume {s.volume_ratio:.1f}x",
         f"{_mark(c.get('above_ma', False))} Di atas MA ({s.ma:,.0f})",
-        f"{_mark(c.get('accumulation', False))} Akumulasi",
+        f"{_mark(c.get('accumulation', False))} Akumulasi OBV",
         f"{_mark(c.get('breakout', False))} Break resistance "
         f"({s.resistance:,.0f}, +{s.breakout_pct:.1f}%)",
+        f"{_mark(c.get('stochastic', False))} Stochastic %K {stoch_k:.0f}",
+        f"{_mark(c.get('money_flow', False))} Money-flow/CMF {cmf:.2f}",
+        f"{_mark(c.get('macd', False))} MACD",
     ]
     return "\n".join(lines)
 
@@ -113,14 +121,25 @@ def print_console(
             s.score,
             s.price,
             f"{s.volume_ratio:.1f}x",
+            f"{getattr(s, 'stoch_k', 0):.0f}",
+            f"{getattr(s, 'cmf', 0):.2f}",
             "Ya" if s.above_ma else "Tidak",
             "Ya" if s.accumulating else "Tidak",
             f"+{s.breakout_pct:.1f}%",
-            s.rsi,
         ]
         for s in signals
     ]
-    headers = ["Kode", "Skor", "Harga", "Vol", "Di atas MA", "Akumulasi", "Break", "RSI"]
+    headers = [
+        "Kode",
+        "Skor",
+        "Harga",
+        "Vol",
+        "StochK",
+        "CMF",
+        "Di atas MA",
+        "Akumulasi",
+        "Break",
+    ]
     print(tabulate(rows, headers=headers, tablefmt="simple"))
     print("\nChecklist:")
     for s in signals:

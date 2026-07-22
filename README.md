@@ -1,15 +1,22 @@
-# Stock Screener IDX — Volume + Break Resistance + Notifikasi
+# Stock Screener IDX — Multi-faktor + Notifikasi Online
 
-Alat screening saham BEI (IDX) untuk membantu menemukan kandidat yang **berpotensi naik** berdasarkan:
+Alat screening saham BEI untuk menemukan kandidat berpotensi naik dengan:
 
-1. **Volume spike** — volume hari ini jauh di atas rata-rata
-2. **Di atas MA** — harga close di atas moving average
-3. **Akumulasi** — OBV naik + volume beli dominan
-4. **Break resistance** — harga menutup di atas resistance (high N hari terakhir)
+1. Volume spike  
+2. Break resistance  
+3. Di atas MA  
+4. Akumulasi OBV  
+5. Stochastic  
+6. Money-flow / proksi bandarmology (CMF + MFI)  
+7. MACD + RSI  
 
-Hasil ditampilkan di terminal, disimpan ke JSON, dan bisa dikirim ke **Telegram** serta **WhatsApp**.
+Hasil ke **Telegram/WhatsApp**, bisa dijalankan **online via GitHub Actions** (tanpa clone tiap hari).
 
-> Catatan: ini alat bantu analisis teknikal, **bukan jaminan** saham akan naik. Selalu kombinasikan dengan riset fundamental & manajemen risiko.
+- Panduan online vs lokal: [`docs/ONLINE.md`](docs/ONLINE.md)  
+- Formula skor: [`docs/FORMULA.md`](docs/FORMULA.md)  
+- Setup notifikasi: [`docs/NOTIFIKASI.md`](docs/NOTIFIKASI.md)  
+
+> Catatan: ini alat bantu teknikal, **bukan jaminan** saham akan naik.
 
 ## Notifikasi Telegram / WhatsApp
 
@@ -36,7 +43,7 @@ Setiap saham yang lolos filter dapat skor 0–100:
 
 Default: hanya saham dengan **skor ≥ 60** yang masuk alert.
 
-## Instalasi
+## Instalasi lokal
 
 ```bash
 python3 -m venv .venv
@@ -44,6 +51,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 ```
+
+**Lebih praktis:** jalankan online via GitHub Actions — lihat [`docs/ONLINE.md`](docs/ONLINE.md).
 
 ## Notifikasi Telegram (opsional)
 
