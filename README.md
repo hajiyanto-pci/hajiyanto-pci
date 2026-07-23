@@ -27,7 +27,9 @@ Setelah `python run_bot.py` berjalan (atau Cloud Agent online), chat `@Sahamgaco
 /kemarin
 cek tanggal 20 july
 cek 20 juli 2026
-cek 20/07/2026
+please cek saham emtk
+cek saham BBCA
+/saham EMTK
 /hariini
 /help
 ```

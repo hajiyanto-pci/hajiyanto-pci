@@ -1,12 +1,11 @@
-"""Telegram bot interaktif untuk cek saham potensi naik.
+"""Telegram bot interaktif untuk cek saham potensi naik & analisa 1 ticker.
 
-Contoh chat ke @Sahamgacor_bot:
-  /start
+Contoh:
   /kemarin
   cek tanggal 20 july
-  cek 20 juli 2026
-  /cek 20/07/2026
-  /hariini
+  please cek saham emtk
+  cek emtk
+  /saham BBCA
 """
 
 from __future__ import annotations
@@ -19,7 +18,9 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
+from screener.analyze import analyze_stock, format_stock_report
 from screener.dates import extract_date_query
+from screener.intent import extract_stock_code
 from screener.notifier import build_message
 from screener.runner import run_screen
 
@@ -27,21 +28,22 @@ logger = logging.getLogger(__name__)
 
 HELP_TEXT = """📈 Saham Gacor Bot
 
-Contoh chat (bebas format tanggal):
-
+1) Screening banyak saham:
 /kemarin
 cek tanggal 20 july
-cek 20 juli
 cek 20/07/2026
-cek 2026-07-20
 /hariini
-/help
 
-Bot memindai: volume, MA, akumulasi, break resistance, stochastic, money-flow, MACD.
-Setiap kandidat disertai saran Entry / SL / TP1 / TP2.
+2) Analisa 1 saham + saran keputusan:
+please cek saham emtk
+cek saham BBCA
+cek emtk
+/saham EMTK
 
-Jadwal otomatis (setelah Actions aktif di main):
-09:10 open | 12:05 break sesi 1 | 16:20 EOD
+Hasil mencakup skor, MA, volume, breakout, stochastic, money-flow,
+Entry / SL / TP1 / TP2, dan saran ke depan.
+
+Jadwal otomatis: 09:10 open | 12:05 break sesi 1 | 16:20 EOD
 """
 
 
@@ -77,6 +79,34 @@ def send_text(token: str, chat_id: str | int, text: str, *, markdown: bool = Fal
 
 def handle_command(token: str, chat_id: str | int, text: str) -> None:
     raw = (text or "").strip()
+    lower = raw.lower().strip()
+
+    if lower in {"/start", "/help", "help", "bantuan"}:
+        send_text(token, chat_id, HELP_TEXT)
+        return
+
+    # Prioritas: query 1 saham
+    code = extract_stock_code(raw)
+    if code:
+        send_text(
+            token,
+            chat_id,
+            f"⏳ Analisa teknikal {code}...\nTunggu sebentar.",
+        )
+        try:
+            report = analyze_stock(code)
+            send_text(token, chat_id, format_stock_report(report))
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Gagal analisa saham")
+            send_text(
+                token,
+                chat_id,
+                f"❌ Gagal analisa {code}: {exc}\n"
+                "Pastikan kode saham BEI benar (contoh EMTK, BBCA).",
+            )
+        return
+
+    # Screening by date
     try:
         label, as_of_date = extract_date_query(raw)
     except ValueError as exc:
@@ -123,9 +153,9 @@ def poll_forever(token: str, allowed_chat_id: str | None = None) -> None:
 
     offset = None
     print("Bot online. Contoh chat:")
+    print("  please cek saham emtk")
     print("  /kemarin")
     print("  cek tanggal 20 july")
-    print("  cek 20/07/2026")
     print("Menunggu pesan... (Ctrl+C untuk stop)")
 
     while True:
