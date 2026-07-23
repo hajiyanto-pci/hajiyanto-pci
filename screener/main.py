@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 from dotenv import load_dotenv
 
+from screener.alerts import run_breakout_alert_job
 from screener.data import fetch_history
 from screener.notifier import (
     discover_telegram_chat_id,
@@ -114,6 +115,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Nonaktifkan kirim WhatsApp untuk run ini",
     )
     parser.add_argument(
+        "--breakout-alerts",
+        action="store_true",
+        help="Kirim notifikasi hanya untuk saham yang BARU break resistance",
+    )
+    parser.add_argument(
+        "--watchlist-only",
+        action="store_true",
+        help="Breakout alert hanya untuk watchlist (output/watchlist.json)",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -171,6 +182,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.test_notify:
         return send_test_notifications()
+
+    if args.breakout_alerts:
+        run_breakout_alert_job(
+            config_path=args.config,
+            mode=args.mode or "breakout",
+            telegram=not args.no_telegram,
+            only_watchlist=args.watchlist_only,
+        )
+        return 0
 
     cfg_path = Path(args.config)
     if not cfg_path.exists():

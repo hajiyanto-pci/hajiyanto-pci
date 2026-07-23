@@ -76,6 +76,11 @@ jobs:
           fi
           python run_screener.py "${ARGS[@]}"
 
+      - name: Breakout resistance alerts
+        run: |
+          # Notifikasi khusus saham yang BARU break resistance (+ SL/TP)
+          python run_screener.py --breakout-alerts --mode "${MODE}" --no-whatsapp
+
       - name: Upload JSON artifacts
         if: always()
         uses: actions/upload-artifact@v4

@@ -28,9 +28,18 @@ Opsional WhatsApp:
 
 | Waktu (WIB) | Mode | Isi alert |
 |-------------|------|-----------|
-| **09:10** | `open` | Early volume + potensi naik + saran SL/TP |
-| **12:05** | `midday` | Break sesi 1: volume & kandidat naik + SL/TP |
+| **09:10** | `open` | Early volume + potensi naik + SL/TP |
+| **12:05** | `midday` | Break sesi 1 + SL/TP |
 | **16:20** | `eod` | Konfirmasi final + SL/TP |
+
+Setiap jadwal juga menjalankan **breakout alert**: notif khusus jika ada saham yang **baru** break resistance (anti-spam per hari).
+
+Via bot:
+```
+/watch EMTK
+/watchlist
+/breakout
+```
 
 > Jika workflow belum muncul: merge PR ke `main`, atau jalankan Actions dari branch `cursor/stock-screener-alerts-8093`.
 

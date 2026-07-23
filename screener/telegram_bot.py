@@ -18,6 +18,7 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
+from screener.alerts import add_watch, load_watchlist, remove_watch, run_breakout_alert_job
 from screener.analyze import analyze_stock, format_stock_report
 from screener.dates import extract_date_query
 from screener.intent import extract_stock_code
@@ -31,19 +32,21 @@ HELP_TEXT = """📈 Saham Gacor Bot
 1) Screening banyak saham:
 /kemarin
 cek tanggal 20 july
-cek 20/07/2026
 /hariini
 
-2) Analisa 1 saham + saran keputusan:
+2) Analisa 1 saham:
 please cek saham emtk
 cek saham BBCA
-cek emtk
 /saham EMTK
 
-Hasil mencakup skor, MA, volume, breakout, stochastic, money-flow,
-Entry / SL / TP1 / TP2, dan saran ke depan.
+3) Notifikasi break resistance:
+/watch EMTK — pantau saham
+/unwatch EMTK — berhenti pantau
+/watchlist — lihat daftar pantau
+/breakout — cek breakout baru sekarang
 
-Jadwal otomatis: 09:10 open | 12:05 break sesi 1 | 16:20 EOD
+Jadwal otomatis: 09:10 | 12:05 break sesi 1 | 16:20 EOD
+(termasuk alert saham yang BARU break resistance + SL/TP)
 """
 
 
@@ -83,6 +86,52 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
 
     if lower in {"/start", "/help", "help", "bantuan"}:
         send_text(token, chat_id, HELP_TEXT)
+        return
+
+    # Watchlist / breakout alert commands
+    if lower in {"/watchlist", "watchlist"}:
+        syms = load_watchlist()
+        if not syms:
+            send_text(token, chat_id, "Watchlist kosong. Contoh: /watch EMTK")
+        else:
+            send_text(token, chat_id, "Watchlist:\n" + ", ".join(syms))
+        return
+
+    if lower.startswith("/watch ") or lower.startswith("watch "):
+        code = lower.split(maxsplit=1)[1].strip().upper()
+        syms = add_watch(code)
+        send_text(
+            token,
+            chat_id,
+            f"✅ {code} ditambahkan ke watchlist.\n"
+            f"Daftar: {', '.join(syms)}\n"
+            "Kamu akan dapat notif jika baru break resistance.",
+        )
+        return
+
+    if lower.startswith("/unwatch ") or lower.startswith("unwatch "):
+        code = lower.split(maxsplit=1)[1].strip().upper()
+        syms = remove_watch(code)
+        send_text(
+            token,
+            chat_id,
+            f"🗑️ {code} dihapus dari watchlist.\n"
+            f"Sisa: {', '.join(syms) if syms else '(kosong)'}",
+        )
+        return
+
+    if lower in {"/breakout", "breakout", "/alert breakout"}:
+        send_text(token, chat_id, "⏳ Cek breakout resistance baru...")
+        try:
+            pending = run_breakout_alert_job(
+                mode="manual",
+                telegram=True,
+                only_watchlist=False,
+            )
+            if not pending:
+                send_text(token, chat_id, "Tidak ada breakout BARU saat ini.")
+        except Exception as exc:  # noqa: BLE001
+            send_text(token, chat_id, f"❌ Gagal cek breakout: {exc}")
         return
 
     # Prioritas: query 1 saham
@@ -154,8 +203,9 @@ def poll_forever(token: str, allowed_chat_id: str | None = None) -> None:
     offset = None
     print("Bot online. Contoh chat:")
     print("  please cek saham emtk")
+    print("  /watch EMTK")
+    print("  /breakout")
     print("  /kemarin")
-    print("  cek tanggal 20 july")
     print("Menunggu pesan... (Ctrl+C untuk stop)")
 
     while True:

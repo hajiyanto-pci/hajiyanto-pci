@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .env
 output/
+!output/.gitkeep
 logs/
 *.log
 .DS_Store

@@ -58,6 +58,12 @@ tp2_rr: 2.5
 min_avg_volume: 500000
 min_price: 50
 
+# --- Alert otomatis break resistance ---
+# Notif hanya jika close baru menembus resistance (kemarin masih di bawah)
+breakout_alert_min_avg_volume: 300000
+breakout_alert_min_volume_ratio: 1.0
+# Watchlist tambahan disimpan di output/watchlist.json (via bot /watch EMTK)
+
 # Notifikasi (isi kredensial di .env / GitHub Secrets)
 notify:
   console: true
