@@ -33,8 +33,23 @@ def test_kemarin_label():
     assert intent.as_of is not None
 
 
+def test_ihsg_phrases():
+    for phrase in [
+        "ihsg hari ini",
+        "potensi ihsg",
+        "prediksi ihsg ke depan",
+        "/ihsg",
+        "analisa ihsg",
+        "makro hari ini",
+        "outlook ihsg",
+    ]:
+        intent = parse_user_intent(phrase)
+        assert intent.kind == "ihsg", phrase
+
+
 if __name__ == "__main__":
     test_screen_phrases()
     test_stock_phrases()
     test_kemarin_label()
+    test_ihsg_phrases()
     print("OK: intent natural tests passed")

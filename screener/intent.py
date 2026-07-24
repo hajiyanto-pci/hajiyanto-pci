@@ -15,6 +15,7 @@ IntentKind = Literal[
     "watch",
     "unwatch",
     "breakout",
+    "ihsg",
     "screen",
     "stock",
     "unknown",
@@ -98,6 +99,12 @@ _NOT_TICKERS = {
     "resisten",
     "resistance",
     "akumulasi",
+    "ihsg",
+    "indeks",
+    "makro",
+    "outlook",
+    "prediksi",
+    "prospek",
 }
 
 # Kata yang menandakan screening banyak saham (bukan 1 ticker)
@@ -324,6 +331,32 @@ def _extract_screen_as_of(lower: str) -> tuple[str, date | None]:
         return extract_date_query(lower)
 
 
+def _is_ihsg_phrase(lower: str) -> bool:
+    """Deteksi tanya IHSG / makro / outlook indeks."""
+    if lower in {"/ihsg", "ihsg", "/makro", "makro"}:
+        return True
+    if "ihsg" in lower or "jkse" in lower:
+        return True
+    if "indeks" in lower and ("hari" in lower or "potensi" in lower or "outlook" in lower):
+        return True
+    if any(
+        p in lower
+        for p in (
+            "outlook ihsg",
+            "potensi ihsg",
+            "prediksi ihsg",
+            "prospek ihsg",
+            "analisa ihsg",
+            "analisis ihsg",
+            "makro hari ini",
+            "kondisi makro",
+            "sentimen makro",
+        )
+    ):
+        return True
+    return False
+
+
 def parse_user_intent(text: str) -> BotIntent:
     """Pahami maksud user dari chat natural."""
     raw = (text or "").strip()
@@ -333,6 +366,10 @@ def parse_user_intent(text: str) -> BotIntent:
 
     if lower in {"/start", "/help", "help", "bantuan", "menu"}:
         return BotIntent(kind="help", raw=raw)
+
+    # IHSG / makro sebelum screening umum ("potensi" juga dipakai di screen)
+    if _is_ihsg_phrase(lower):
+        return BotIntent(kind="ihsg", raw=raw)
 
     if lower in {"/watchlist", "watchlist"}:
         return BotIntent(kind="watchlist", raw=raw)

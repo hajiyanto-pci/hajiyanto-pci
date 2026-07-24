@@ -89,7 +89,12 @@ Lalu chat ke bot:
 /kemarin
 /cek 2026-07-21
 /hariini
+ihsg hari ini
+potensi ihsg
+/ihsg
 /help
 ```
+
+Bot IHSG menggabungkan teknikal `^JKSE` (Yahoo), snapshot makro (USD/IDR, S&P, Nasdaq, minyak, emas, US10Y), dan headline Google News terkait IHSG/BI/rupiah.
 
 Untuk notifikasi otomatis tiap sore tanpa chat, tetap pakai GitHub Actions (tambahkan Secrets di repo Settings).

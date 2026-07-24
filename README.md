@@ -30,6 +30,9 @@ cek 20 juli 2026
 please cek saham emtk
 cek saham BBCA
 /saham EMTK
+ihsg hari ini
+potensi ihsg
+/ihsg
 /hariini
 /help
 ```

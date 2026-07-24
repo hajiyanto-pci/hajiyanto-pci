@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 
 from screener.alerts import add_watch, load_watchlist, remove_watch, run_breakout_alert_job
 from screener.analyze import analyze_stock, format_stock_report
+from screener.ihsg import analyze_ihsg, format_ihsg_report
 from screener.intent import parse_user_intent
 from screener.notifier import build_message
 from screener.runner import run_screen
@@ -31,13 +32,14 @@ Bisa pakai bahasa natural, contoh:
 
 • cek saham potensi kemarin
 • saham hari ini
+• ihsg hari ini / potensi ihsg
 • cek tanggal 20 july
 • please cek saham emtk
 • /watch EMTK
 • /breakout
 
 Perintah singkat:
-/kemarin | /hariini | /help | /watchlist
+/kemarin | /hariini | /ihsg | /help | /watchlist
 """
 
 
@@ -149,6 +151,23 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
             send_text(token, chat_id, f"❌ Gagal cek breakout: {exc}")
         return
 
+    if intent.kind == "ihsg":
+        send_text(
+            token,
+            chat_id,
+            "⏳ Analisa IHSG + makro + headline berita...\nTunggu 10–30 detik.",
+        )
+        try:
+            outlook = analyze_ihsg()
+            if outlook is None:
+                send_text(token, chat_id, "❌ Data IHSG tidak tersedia saat ini.")
+            else:
+                send_text(token, chat_id, format_ihsg_report(outlook))
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Gagal analisa IHSG")
+            send_text(token, chat_id, f"❌ Gagal analisa IHSG: {exc}")
+        return
+
     if intent.kind == "stock" and intent.stock_code:
         code = intent.stock_code
         send_text(token, chat_id, f"⏳ Analisa teknikal {code}...\nTunggu sebentar.")
@@ -182,6 +201,7 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
         "Coba contoh ini:\n"
         "• cek saham potensi kemarin\n"
         "• saham hari ini\n"
+        "• ihsg hari ini\n"
         "• please cek saham emtk\n"
         "• /help",
     )
@@ -197,6 +217,7 @@ def poll_forever(token: str, allowed_chat_id: str | None = None) -> None:
     print("Bot online. Contoh chat natural:")
     print("  cek saham potensi kemarin")
     print("  saham hari ini")
+    print("  ihsg hari ini / potensi ihsg")
     print("  please cek saham emtk")
     print("Menunggu pesan... (Ctrl+C untuk stop)")
 
