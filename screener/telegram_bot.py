@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from typing import Any
 
@@ -52,7 +53,9 @@ Jadwal otomatis: 09:10 | 12:05 break sesi 1 | 16:20 EOD
 
 def _api(token: str, method: str, **params: Any) -> dict:
     url = f"https://api.telegram.org/bot{token}/{method}"
-    resp = requests.post(url, json=params, timeout=60)
+    # getUpdates long-poll butuh timeout lebih longgar
+    timeout = 90 if method == "getUpdates" else 60
+    resp = requests.post(url, json=params, timeout=timeout)
     resp.raise_for_status()
     data = resp.json()
     if not data.get("ok"):
@@ -87,6 +90,16 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
     if lower in {"/start", "/help", "help", "bantuan"}:
         send_text(token, chat_id, HELP_TEXT)
         return
+
+    # Alias natural: "saham hari ini" / "cek saham hari ini"
+    if re.search(r"\bhari\s+ini\b", lower) or lower in {
+        "saham hari ini",
+        "cek saham hari ini",
+        "/hariini",
+        "hariini",
+    }:
+        raw = "/hariini"
+        lower = "/hariini"
 
     # Watchlist / breakout alert commands
     if lower in {"/watchlist", "watchlist"}:

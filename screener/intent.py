@@ -34,6 +34,36 @@ _STOP = {
     "/saham",
     "/stock",
     "/ticker",
+    "hari",
+    "ini",
+    "today",
+    "kemarin",
+    "yesterday",
+    "potensi",
+    "naik",
+    "break",
+    "open",
+}
+
+# Bukan kode saham meski 3-5 huruf
+_NOT_TICKERS = {
+    "hari",
+    "ini",
+    "tgl",
+    "today",
+    "kemarin",
+    "open",
+    "break",
+    "volume",
+    "score",
+    "skor",
+    "help",
+    "start",
+    "please",
+    "bantu",
+    "list",
+    "watch",
+    "alert",
 }
 
 
@@ -47,15 +77,28 @@ def extract_stock_code(text: str) -> str | None:
         return None
     lower = raw.lower().strip()
 
+    # Frasa screening tanggal / hari ini — bukan ticker
+    if re.search(r"\bhari\s+ini\b", lower) or lower in {
+        "saham hari ini",
+        "cek saham hari ini",
+        "hari ini",
+        "/hariini",
+    }:
+        return None
+
     # Shortcut command
     m = re.match(r"^/(?:saham|stock|ticker)\s+([a-z]{3,5})\b", lower)
     if m:
-        return m.group(1).upper()
+        code = m.group(1)
+        return None if code in _NOT_TICKERS else code.upper()
 
-    # Pola eksplisit "saham XXX"
+    # Pola eksplisit "saham XXX" (hindari "saham hari")
     m = re.search(r"\bsaham\s+([a-z]{3,5})\b", lower)
     if m:
-        return m.group(1).upper()
+        code = m.group(1)
+        if code in _NOT_TICKERS:
+            return None
+        return code.upper()
 
     # "cek emtk" / "analisa emtk" / "info emtk"
     m = re.match(
@@ -64,17 +107,18 @@ def extract_stock_code(text: str) -> str | None:
     )
     if m:
         code = m.group(1)
-        if code not in {"hari", "tgl", "tgl.", "kemarin", "today"}:
-            return code.upper()
+        if code in _NOT_TICKERS:
+            return None
+        return code.upper()
 
     # Kalimat panjang: ambil kandidat ticker 3-5 huruf, buang stopwords/tanggal
-    # Jangan trigger jika ada kata tanggal
     date_hints = (
         "tanggal",
         "tgl",
         "kemarin",
         "yesterday",
         "hariini",
+        "hari ini",
         "july",
         "juli",
         "januari",
@@ -101,27 +145,9 @@ def extract_stock_code(text: str) -> str | None:
         return None
 
     tokens = re.findall(r"[a-z]{3,5}", lower)
-    candidates = [t for t in tokens if t not in _STOP]
-    # Hindari kata umum
-    ban = {
-        "please",
-        "bantu",
-        "bantuan",
-        "help",
-        "start",
-        "hari",
-        "ini",
-        "open",
-        "break",
-        "volume",
-        "score",
-        "skor",
-    }
-    candidates = [c for c in candidates if c not in ban]
+    candidates = [t for t in tokens if t not in _STOP and t not in _NOT_TICKERS]
     if len(candidates) == 1:
         return candidates[0].upper()
-    # "please cek saham emtk ..." -> last ticker-like often the code
     if candidates:
-        # prefer token after 'saham' already handled; else last candidate
         return candidates[-1].upper()
     return None
