@@ -1,18 +1,16 @@
 """Telegram bot interaktif untuk cek saham potensi naik & analisa 1 ticker.
 
-Contoh:
-  /kemarin
-  cek tanggal 20 july
+Contoh natural:
+  cek saham potensi kemarin
+  saham hari ini
   please cek saham emtk
-  cek emtk
-  /saham BBCA
+  /kemarin
 """
 
 from __future__ import annotations
 
 import logging
 import os
-import re
 import time
 from typing import Any
 
@@ -21,8 +19,7 @@ from dotenv import load_dotenv
 
 from screener.alerts import add_watch, load_watchlist, remove_watch, run_breakout_alert_job
 from screener.analyze import analyze_stock, format_stock_report
-from screener.dates import extract_date_query
-from screener.intent import extract_stock_code
+from screener.intent import parse_user_intent
 from screener.notifier import build_message
 from screener.runner import run_screen
 
@@ -30,30 +27,22 @@ logger = logging.getLogger(__name__)
 
 HELP_TEXT = """📈 Saham Gacor Bot
 
-1) Screening banyak saham:
-/kemarin
-cek tanggal 20 july
-/hariini
+Bisa pakai bahasa natural, contoh:
 
-2) Analisa 1 saham:
-please cek saham emtk
-cek saham BBCA
-/saham EMTK
+• cek saham potensi kemarin
+• saham hari ini
+• cek tanggal 20 july
+• please cek saham emtk
+• /watch EMTK
+• /breakout
 
-3) Notifikasi break resistance:
-/watch EMTK — pantau saham
-/unwatch EMTK — berhenti pantau
-/watchlist — lihat daftar pantau
-/breakout — cek breakout baru sekarang
-
-Jadwal otomatis: 09:10 | 12:05 break sesi 1 | 16:20 EOD
-(termasuk alert saham yang BARU break resistance + SL/TP)
+Perintah singkat:
+/kemarin | /hariini | /help | /watchlist
 """
 
 
 def _api(token: str, method: str, **params: Any) -> dict:
     url = f"https://api.telegram.org/bot{token}/{method}"
-    # getUpdates long-poll butuh timeout lebih longgar
     timeout = 90 if method == "getUpdates" else 60
     resp = requests.post(url, json=params, timeout=timeout)
     resp.raise_for_status()
@@ -83,26 +72,41 @@ def send_text(token: str, chat_id: str | int, text: str, *, markdown: bool = Fal
             _api(token, "sendMessage", **payload)
 
 
-def handle_command(token: str, chat_id: str | int, text: str) -> None:
-    raw = (text or "").strip()
-    lower = raw.lower().strip()
+def _run_screen_and_reply(
+    token: str, chat_id: str | int, *, label: str, as_of_arg: str | None
+) -> None:
+    send_text(
+        token,
+        chat_id,
+        f"⏳ Memindai saham potensi naik ({label})...\nTunggu 10–40 detik.",
+    )
+    signals = run_screen(
+        as_of=as_of_arg,
+        mode="eod",
+        notify=False,
+        telegram=False,
+        whatsapp=False,
+    )
+    msg = build_message(
+        signals,
+        mode="eod",
+        markdown=False,
+        as_of=as_of_arg,
+    )
+    if not signals:
+        msg += "\n\nTidak ada yang lolos filter. Coba tanggal lain."
+    send_text(token, chat_id, msg)
 
-    if lower in {"/start", "/help", "help", "bantuan"}:
+
+def handle_command(token: str, chat_id: str | int, text: str) -> None:
+    intent = parse_user_intent(text)
+    logger.info("Intent: %s | raw=%r", intent.kind, intent.raw)
+
+    if intent.kind == "help":
         send_text(token, chat_id, HELP_TEXT)
         return
 
-    # Alias natural: "saham hari ini" / "cek saham hari ini"
-    if re.search(r"\bhari\s+ini\b", lower) or lower in {
-        "saham hari ini",
-        "cek saham hari ini",
-        "/hariini",
-        "hariini",
-    }:
-        raw = "/hariini"
-        lower = "/hariini"
-
-    # Watchlist / breakout alert commands
-    if lower in {"/watchlist", "watchlist"}:
+    if intent.kind == "watchlist":
         syms = load_watchlist()
         if not syms:
             send_text(token, chat_id, "Watchlist kosong. Contoh: /watch EMTK")
@@ -110,30 +114,28 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
             send_text(token, chat_id, "Watchlist:\n" + ", ".join(syms))
         return
 
-    if lower.startswith("/watch ") or lower.startswith("watch "):
-        code = lower.split(maxsplit=1)[1].strip().upper()
-        syms = add_watch(code)
+    if intent.kind == "watch" and intent.stock_code:
+        syms = add_watch(intent.stock_code)
         send_text(
             token,
             chat_id,
-            f"✅ {code} ditambahkan ke watchlist.\n"
+            f"✅ {intent.stock_code} ditambahkan ke watchlist.\n"
             f"Daftar: {', '.join(syms)}\n"
             "Kamu akan dapat notif jika baru break resistance.",
         )
         return
 
-    if lower.startswith("/unwatch ") or lower.startswith("unwatch "):
-        code = lower.split(maxsplit=1)[1].strip().upper()
-        syms = remove_watch(code)
+    if intent.kind == "unwatch" and intent.stock_code:
+        syms = remove_watch(intent.stock_code)
         send_text(
             token,
             chat_id,
-            f"🗑️ {code} dihapus dari watchlist.\n"
+            f"🗑️ {intent.stock_code} dihapus dari watchlist.\n"
             f"Sisa: {', '.join(syms) if syms else '(kosong)'}",
         )
         return
 
-    if lower in {"/breakout", "breakout", "/alert breakout"}:
+    if intent.kind == "breakout":
         send_text(token, chat_id, "⏳ Cek breakout resistance baru...")
         try:
             pending = run_breakout_alert_job(
@@ -147,14 +149,9 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
             send_text(token, chat_id, f"❌ Gagal cek breakout: {exc}")
         return
 
-    # Prioritas: query 1 saham
-    code = extract_stock_code(raw)
-    if code:
-        send_text(
-            token,
-            chat_id,
-            f"⏳ Analisa teknikal {code}...\nTunggu sebentar.",
-        )
+    if intent.kind == "stock" and intent.stock_code:
+        code = intent.stock_code
+        send_text(token, chat_id, f"⏳ Analisa teknikal {code}...\nTunggu sebentar.")
         try:
             report = analyze_stock(code)
             send_text(token, chat_id, format_stock_report(report))
@@ -168,43 +165,26 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
             )
         return
 
-    # Screening by date
-    try:
-        label, as_of_date = extract_date_query(raw)
-    except ValueError as exc:
-        msg = str(exc)
-        if msg == "__HELP__":
-            send_text(token, chat_id, HELP_TEXT)
-            return
-        send_text(token, chat_id, f"{msg}\n\n{HELP_TEXT}")
+    if intent.kind == "screen":
+        label = intent.screen_label or "terbaru"
+        as_of_arg = intent.as_of.isoformat() if intent.as_of is not None else None
+        try:
+            _run_screen_and_reply(token, chat_id, label=label, as_of_arg=as_of_arg)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Gagal screening")
+            send_text(token, chat_id, f"❌ Gagal analisa: {exc}")
         return
 
-    as_of_arg = as_of_date.isoformat() if as_of_date is not None else None
     send_text(
         token,
         chat_id,
-        f"⏳ Memindai saham potensi naik ({label})...\nTunggu 10–40 detik.",
+        "Maaf, saya belum yakin maksudnya.\n\n"
+        "Coba contoh ini:\n"
+        "• cek saham potensi kemarin\n"
+        "• saham hari ini\n"
+        "• please cek saham emtk\n"
+        "• /help",
     )
-    try:
-        signals = run_screen(
-            as_of=as_of_arg,
-            mode="eod",
-            notify=False,
-            telegram=False,
-            whatsapp=False,
-        )
-        msg = build_message(
-            signals,
-            mode="eod",
-            markdown=False,
-            as_of=as_of_arg,
-        )
-        if not signals:
-            msg += "\n\nTidak ada yang lolos filter. Coba tanggal lain."
-        send_text(token, chat_id, msg)
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Gagal proses perintah")
-        send_text(token, chat_id, f"❌ Gagal analisa: {exc}")
 
 
 def poll_forever(token: str, allowed_chat_id: str | None = None) -> None:
@@ -214,11 +194,10 @@ def poll_forever(token: str, allowed_chat_id: str | None = None) -> None:
         pass
 
     offset = None
-    print("Bot online. Contoh chat:")
+    print("Bot online. Contoh chat natural:")
+    print("  cek saham potensi kemarin")
+    print("  saham hari ini")
     print("  please cek saham emtk")
-    print("  /watch EMTK")
-    print("  /breakout")
-    print("  /kemarin")
     print("Menunggu pesan... (Ctrl+C untuk stop)")
 
     while True:
