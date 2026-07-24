@@ -8,6 +8,7 @@ from datetime import date
 from typing import Literal
 
 from screener.dates import extract_date_query, parse_natural_date, previous_trading_day
+from screener.presets import detect_screen_type, is_tech_menu_request, normalize_preset_key
 
 IntentKind = Literal[
     "help",
@@ -18,6 +19,7 @@ IntentKind = Literal[
     "ihsg",
     "screen",
     "stock",
+    "tech_menu",
     "unknown",
 ]
 
@@ -130,6 +132,16 @@ _NOT_TICKERS = {
     "minggu",
     "pekan",
     "week",
+    "bandar",
+    "bandarmology",
+    "akumulasi",
+    "volume",
+    "macd",
+    "rsi",
+    "cross",
+    "silang",
+    "filter",
+    "menu",
 }
 
 
@@ -161,6 +173,17 @@ _SCREEN_HINTS = (
     "oversold",
     "stochastic",
     "stoch",
+    "bandar",
+    "bandarmology",
+    "akumulasi",
+    "accumulation",
+    "volume",
+    "macd",
+    "rsi",
+    "cross",
+    "silang",
+    "teknikal",
+    "teknis",
 )
 
 
@@ -217,6 +240,30 @@ def _normalize_chat(text: str) -> str:
         r"\bthis\s*week\b": "minggu ini",
         r"\bweek\s*ini\b": "minggu ini",
         r"\bhari\s*ni\b": "hari ini",
+        # bandarmology typos
+        r"\bbandarmologi\b": "bandarmology",
+        r"\bbandar\s*mology\b": "bandarmology",
+        r"\bbandarmologyy\b": "bandarmology",
+        r"\bbndar\b": "bandar",
+        r"\baliran\s*dana\b": "aliran dana",
+        r"\bmoney\s*flow\b": "money flow",
+        # cross / silang
+        r"\bcros\b": "cross",
+        r"\bcrosss\b": "cross",
+        r"\bsilang\s*keatas\b": "silang ke atas",
+        r"\bcross\s*keatas\b": "cross ke atas",
+        r"\bgolden\s*cros\b": "golden cross",
+        r"\bvoli\b": "volume",
+        r"\bvolum\b": "volume",
+        r"\bakumulsi\b": "akumulasi",
+        r"\bakumulasii\b": "akumulasi",
+        r"\bnais\b": "bisa",
+        r"\bbagimana\b": "bagaimana",
+        r"\bkemauan\b": "kemauan",
+        r"\bsemabrangan\b": "sembarangan",
+        r"\bsembrangan\b": "sembarangan",
+        r"\bimprve\b": "improve",
+        r"\bimprve\b": "improve",
     }
     for pat, rep in replacements.items():
         t = re.sub(pat, rep, t)
@@ -342,14 +389,48 @@ def extract_stock_code(text: str) -> str | None:
 def _is_stoch_oversold_phrase(lower: str) -> bool:
     has_stoch = "stochastic" in lower or "stoch" in lower
     has_oversold = "oversold" in lower or "jenuh jual" in lower
-    # "stochastic oversold" / "oversold stochastic" / "saham oversold"
     if has_stoch and has_oversold:
         return True
     if has_stoch and ("rendah" in lower or "lemah" in lower or "<20" in lower or "di bawah 20" in lower):
         return True
     if has_oversold and ("saham" in lower or "screening" in lower or "scan" in lower or "cek" in lower):
+        # jangan override jika jelas rsi oversold
+        if "rsi" in lower:
+            return False
         return True
     return False
+
+
+def _is_technical_screen_phrase(lower: str) -> bool:
+    """Ada sinyal user minta screening teknikal (bukan 1 ticker)."""
+    if _is_stoch_oversold_phrase(lower):
+        return True
+    if is_tech_menu_request(lower):
+        return True
+    keys = (
+        "bandar",
+        "bandarmology",
+        "money flow",
+        "aliran dana",
+        "akumulasi",
+        "accumulation",
+        "stochastic",
+        "oversold",
+        "cross ke atas",
+        "silang ke atas",
+        "cross up",
+        "volume tinggi",
+        "volume spike",
+        "volume naik",
+        "rsi oversold",
+        "rsi rendah",
+        "macd",
+        "filter teknikal",
+        "screening",
+        "screener",
+        "scan saham",
+    )
+    return any(k in lower for k in keys)
 
 
 def _extract_screen_as_of(lower: str) -> tuple[str, date | None, int | None]:
@@ -404,6 +485,32 @@ def _extract_screen_as_of(lower: str) -> tuple[str, date | None, int | None]:
         "oversold",
         "minggu",
         "pekan",
+        "bandar",
+        "bandarmology",
+        "akumulasi",
+        "accumulation",
+        "volume",
+        "macd",
+        "rsi",
+        "cross",
+        "silang",
+        "atas",
+        "ke",
+        "putar",
+        "naik",
+        "tinggi",
+        "spike",
+        "rendah",
+        "golden",
+        "money",
+        "flow",
+        "aliran",
+        "dana",
+        "obv",
+        "lihat",
+        "liat",
+        "mau",
+        "dong",
     ]
     for w in junk:
         cleaned = re.sub(rf"\b{re.escape(w)}\b", " ", cleaned)
@@ -417,9 +524,12 @@ def _extract_screen_as_of(lower: str) -> tuple[str, date | None, int | None]:
         d = parse_natural_date(cleaned)
         return (d.isoformat(), d, 1)
     except Exception:
-        # fallback ke extract_date_query lama
-        label, as_of = extract_date_query(lower)
-        return (label, as_of, 1)
+        try:
+            label, as_of = extract_date_query(lower)
+            return (label, as_of, 1)
+        except Exception:
+            # Chat teknikal tanpa tanggal eksplisit → default hari ini
+            return ("hari ini", None, 1)
 
 
 def _is_ihsg_phrase(lower: str) -> bool:
@@ -476,14 +586,23 @@ def parse_user_intent(text: str) -> BotIntent:
     if lower in {"/breakout", "breakout", "/alert breakout", "cek breakout"}:
         return BotIntent(kind="breakout", raw=raw)
 
-    # Stochastic oversold: "cek saham stochastic oversold hari ini / minggu ini"
-    if _is_stoch_oversold_phrase(lower):
+    if lower in {"/teknikal", "/filter", "menu teknikal", "filter teknikal"}:
+        return BotIntent(kind="tech_menu", raw=raw)
+
+    # User minta daftar opsi teknikal
+    if is_tech_menu_request(lower):
+        return BotIntent(kind="tech_menu", raw=raw)
+
+    # Screening teknikal spesifik (bandar / stoch / volume / dll) dari chat acak
+    if _is_technical_screen_phrase(lower) or _is_stoch_oversold_phrase(lower):
+        screen_type, _conf = detect_screen_type(lower)
+        screen_type = normalize_preset_key(screen_type)
         label, as_of, lookback = _extract_screen_as_of(lower)
         return BotIntent(
             kind="screen",
             screen_label=label,
             as_of=as_of,
-            screen_type="stoch_oversold",
+            screen_type=screen_type,
             stoch_lookback=lookback or 1,
             raw=raw,
         )
@@ -498,8 +617,6 @@ def parse_user_intent(text: str) -> BotIntent:
             "naik",
             "hari",
         }:
-            # Jika juga ada kemarin/hari ini/potensi → tetap screen kecuali ticker eksplisit
-            # dan TIDAK ada kata potensi/kemarin/hari sebagai konteks umum
             only_stock = (
                 m.group(1) not in _NOT_TICKERS
                 and "potensi" not in lower
@@ -510,6 +627,10 @@ def parse_user_intent(text: str) -> BotIntent:
                 and "minggu ini" not in lower
                 and "oversold" not in lower
                 and "stochastic" not in lower
+                and "bandar" not in lower
+                and "akumulasi" not in lower
+                and "macd" not in lower
+                and "volume" not in lower
             )
             if only_stock:
                 code = m.group(1).upper()
@@ -517,11 +638,12 @@ def parse_user_intent(text: str) -> BotIntent:
             return BotIntent(kind="stock", stock_code=code, raw=raw)
 
         label, as_of, lookback = _extract_screen_as_of(lower)
+        screen_type, _conf = detect_screen_type(lower)
         return BotIntent(
             kind="screen",
             screen_label=label,
             as_of=as_of,
-            screen_type="breakout",
+            screen_type=normalize_preset_key(screen_type),
             stoch_lookback=lookback,
             raw=raw,
         )

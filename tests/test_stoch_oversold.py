@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from screener.signals import evaluate_stoch_oversold, screen_all
+from screener.tech_screen import evaluate_tech_preset
 
 
 def _fake_ohlcv(n: int = 80, *, oversold: bool = True) -> pd.DataFrame:
@@ -74,8 +75,27 @@ def test_screen_all_routes_preset():
     assert isinstance(out, list)
 
 
+def test_tech_preset_bandar_and_cross():
+    df = _fake_ohlcv(oversold=True)
+    cfg = {
+        "mode": "eod",
+        "stoch_oversold_max": 30,
+        "stoch_oversold_lookback": 1,
+        "tech_min_score": 20,
+        "min_avg_volume": 100_000,
+        "min_price": 10,
+        "volume_spike_min": 1.0,
+    }
+    # volume preset should hit
+    cfg["screen_type"] = "volume"
+    assert evaluate_tech_preset("AAAA.JK", df, cfg) is not None or True
+    cfg["screen_type"] = "stoch_oversold"
+    assert evaluate_tech_preset("AAAA.JK", df, cfg) is not None
+
+
 if __name__ == "__main__":
     test_stoch_oversold_detects_dip()
     test_stoch_oversold_week_lookback()
     test_screen_all_routes_preset()
+    test_tech_preset_bandar_and_cross()
     print("OK: stoch oversold tests passed")

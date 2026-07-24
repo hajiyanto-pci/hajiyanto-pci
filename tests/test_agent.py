@@ -40,6 +40,13 @@ def test_agent_stoch_oversold():
     assert "oversold" in plan.understanding.lower() or "Stochastic" in plan.understanding
 
 
+def test_agent_bandar_and_cross():
+    p1 = understand("cek bandarmology dong hari ini", prefer_llm=False)
+    assert p1.kind == "screen" and p1.screen_type == "bandar"
+    p2 = understand("stochastic silang ke atas", prefer_llm=False)
+    assert p2.kind == "screen" and p2.screen_type == "stoch_cross"
+
+
 def test_agent_clarify_on_garbage():
     plan = understand("halo apa kabar cuaca", prefer_llm=False)
     assert plan.kind in {"clarify", "unknown"}
@@ -51,5 +58,6 @@ if __name__ == "__main__":
     test_agent_screen()
     test_agent_stock()
     test_agent_stoch_oversold()
+    test_agent_bandar_and_cross()
     test_agent_clarify_on_garbage()
     print("OK: agent planner tests passed")

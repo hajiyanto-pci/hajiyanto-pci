@@ -13,6 +13,7 @@ from urllib.parse import quote
 import requests
 from tabulate import tabulate
 
+from screener.presets import normalize_preset_key, preset_title
 from screener.signals import Signal
 
 logger = logging.getLogger(__name__)
@@ -29,15 +30,11 @@ MODE_TITLE = {
 def notify_all(signals: Iterable[Signal], cfg: dict) -> None:
     signals = list(signals)
     mode = str(cfg.get("mode", "eod")).lower()
-    screen_type = str(cfg.get("screen_type", "breakout")).lower()
+    screen_type = normalize_preset_key(str(cfg.get("screen_type", "breakout")))
     as_of = cfg.get("as_of")
     as_of_label = as_of.isoformat() if as_of else None
     notify_cfg = cfg.get("notify", {}) or {}
-    title_mode = "stoch_oversold" if screen_type in {
-        "stoch_oversold",
-        "stochastic_oversold",
-        "oversold",
-    } else mode
+    title_mode = screen_type if screen_type != "breakout" else mode
     if notify_cfg.get("console", True):
         print_console(signals, mode=title_mode, as_of=as_of_label)
     if notify_cfg.get("save_json", True):
@@ -104,13 +101,14 @@ def build_message(
     screen_type: str | None = None,
     screen_label: str | None = None,
 ) -> str:
-    title = MODE_TITLE.get(mode, mode)
-    st = (screen_type or "").lower()
-    if st in {"stoch_oversold", "stochastic_oversold", "oversold"}:
+    st = normalize_preset_key(screen_type) if screen_type else ""
+    if st and st != "breakout":
         period = screen_label or "terbaru"
-        title = f"Stochastic Oversold ({period})"
-    elif as_of:
-        title = f"Analisa {as_of}"
+        title = f"{preset_title(st)} ({period})"
+    else:
+        title = MODE_TITLE.get(mode, mode)
+        if as_of:
+            title = f"Analisa {as_of}"
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     if markdown:
         header = f"🚀 *Stock Screener IDX — {title}*\nWaktu: {stamp}\n"
@@ -120,8 +118,8 @@ def build_message(
     if not signals:
         return header + "\nTidak ada saham yang memenuhi kriteria."
 
-    if st in {"stoch_oversold", "stochastic_oversold", "oversold"}:
-        found = f"Ditemukan: {len(signals)} saham Stochastic oversold\n"
+    if st and st != "breakout":
+        found = f"Ditemukan: {len(signals)} saham ({preset_title(st)})\n"
     else:
         found = f"Ditemukan: {len(signals)} saham kandidat naik\n"
     parts = [header + found]

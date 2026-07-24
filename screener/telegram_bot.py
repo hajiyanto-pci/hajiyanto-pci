@@ -21,26 +21,27 @@ from screener.alerts import add_watch, load_watchlist, remove_watch, run_breakou
 from screener.analyze import analyze_stock, format_stock_report
 from screener.ihsg import analyze_ihsg, format_ihsg_report
 from screener.notifier import build_message
+from screener.presets import format_preset_menu, normalize_preset_key, preset_title
 from screener.runner import run_screen
 
 logger = logging.getLogger(__name__)
 
 HELP_TEXT = """📈 Saham Gacor Bot (agent mode)
 
-Chat bebas — bot akan pahami dulu maksudmu, baru analisa.
+Chat bebas / boleh typo — bot pahami dulu, baru analisa.
 
 Contoh:
 • dapatkah cek potensi ihsg
-• ihsg hari ini / makro hari ini
-• cek saham potensi kemarin
-• cek saham stochastic oversold hari ini
-• cek saham scoshatic oversold minggu ini
+• cek saham bandarmology hari ini
+• stochastic oversold minggu ini
+• stoch cross ke atas
+• cek saham akumulasi
+• volume tinggi hari ini
+• rsi oversold
+• macd putar naik
 • please cek saham emtk
+• /teknikal  ← daftar semua filter
 • /watch EMTK
-• /breakout
-
-Perintah singkat:
-/kemarin | /hariini | /ihsg | /help | /watchlist
 
 Opsional NLU AI: set OPENAI_API_KEY di .env
 """
@@ -86,18 +87,17 @@ def _run_screen_and_reply(
     screen_type: str = "breakout",
     stoch_lookback: int | None = None,
 ) -> None:
-    if screen_type == "stoch_oversold":
-        wait_msg = (
-            f"⏳ Screening Stochastic oversold ({label})...\n"
-            "Filter %K ≤ 20. Tunggu 10–40 detik."
-        )
-    else:
-        wait_msg = f"⏳ Memindai saham potensi naik ({label})...\nTunggu 10–40 detik."
-    send_text(token, chat_id, wait_msg)
+    st = normalize_preset_key(screen_type)
+    title = preset_title(st)
+    send_text(
+        token,
+        chat_id,
+        f"⏳ Screening {title} ({label})...\nTunggu 10–40 detik.",
+    )
     signals = run_screen(
         as_of=as_of_arg,
         mode="eod",
-        screen_type=screen_type,
+        screen_type=st,
         stoch_oversold_lookback=stoch_lookback,
         notify=False,
         telegram=False,
@@ -108,14 +108,14 @@ def _run_screen_and_reply(
         mode="eod",
         markdown=False,
         as_of=as_of_arg,
-        screen_type=screen_type,
+        screen_type=st,
         screen_label=label,
     )
     if not signals:
-        if screen_type == "stoch_oversold":
-            msg += "\n\nTidak ada yang oversold. Coba 'minggu ini' atau tanggal lain."
-        else:
-            msg += "\n\nTidak ada yang lolos filter. Coba tanggal lain."
+        msg += (
+            f"\n\nTidak ada yang lolos filter {title}. "
+            "Coba 'minggu ini', tanggal lain, atau /teknikal."
+        )
     send_text(token, chat_id, msg)
 
 
@@ -123,6 +123,10 @@ def _execute_plan(token: str, chat_id: str | int, plan: AgentPlan) -> None:
     """Jalankan tool analisa sesuai plan agent."""
     if plan.kind == "help":
         send_text(token, chat_id, HELP_TEXT)
+        return
+
+    if plan.kind == "tech_menu":
+        send_text(token, chat_id, format_preset_menu())
         return
 
     if plan.kind in {"clarify", "unknown"}:

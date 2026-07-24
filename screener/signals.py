@@ -701,13 +701,11 @@ def screen_all(
     *,
     now: datetime | None = None,
 ) -> list[Signal]:
-    screen_type = str(cfg.get("screen_type", "breakout")).lower()
+    from screener.tech_screen import evaluate_for_screen_type
+
     signals: list[Signal] = []
     for sym, df in histories.items():
-        if screen_type in {"stoch_oversold", "stochastic_oversold", "oversold"}:
-            sig = evaluate_stoch_oversold(sym, df, cfg, now=now)
-        else:
-            sig = evaluate_symbol(sym, df, cfg, now=now)
+        sig = evaluate_for_screen_type(sym, df, cfg, now=now)
         if sig is not None:
             signals.append(sig)
     signals.sort(key=lambda s: s.score, reverse=True)
