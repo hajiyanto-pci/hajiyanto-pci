@@ -22,28 +22,35 @@ MODE_TITLE = {
     "morning": "Watchlist Pagi (H-1)",
     "open": "Open 09:10 (early)",
     "midday": "Break Sesi 1 / Midday",
+    "stoch_oversold": "Stochastic Oversold",
 }
 
 
 def notify_all(signals: Iterable[Signal], cfg: dict) -> None:
     signals = list(signals)
     mode = str(cfg.get("mode", "eod")).lower()
+    screen_type = str(cfg.get("screen_type", "breakout")).lower()
     as_of = cfg.get("as_of")
     as_of_label = as_of.isoformat() if as_of else None
     notify_cfg = cfg.get("notify", {}) or {}
+    title_mode = "stoch_oversold" if screen_type in {
+        "stoch_oversold",
+        "stochastic_oversold",
+        "oversold",
+    } else mode
     if notify_cfg.get("console", True):
-        print_console(signals, mode=mode, as_of=as_of_label)
+        print_console(signals, mode=title_mode, as_of=as_of_label)
     if notify_cfg.get("save_json", True):
         save_json(
             signals,
             notify_cfg.get("output_dir", "output"),
-            mode=mode,
+            mode=title_mode,
             as_of=as_of_label,
         )
     if notify_cfg.get("telegram", True):
-        send_telegram(signals, mode=mode, as_of=as_of_label)
+        send_telegram(signals, mode=title_mode, as_of=as_of_label)
     if notify_cfg.get("whatsapp", True):
-        send_whatsapp(signals, mode=mode, as_of=as_of_label)
+        send_whatsapp(signals, mode=title_mode, as_of=as_of_label)
 
 
 def _mark(ok: bool) -> str:
@@ -94,9 +101,15 @@ def build_message(
     *,
     markdown: bool = False,
     as_of: str | None = None,
+    screen_type: str | None = None,
+    screen_label: str | None = None,
 ) -> str:
     title = MODE_TITLE.get(mode, mode)
-    if as_of:
+    st = (screen_type or "").lower()
+    if st in {"stoch_oversold", "stochastic_oversold", "oversold"}:
+        period = screen_label or "terbaru"
+        title = f"Stochastic Oversold ({period})"
+    elif as_of:
         title = f"Analisa {as_of}"
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     if markdown:
@@ -107,7 +120,11 @@ def build_message(
     if not signals:
         return header + "\nTidak ada saham yang memenuhi kriteria."
 
-    parts = [header + f"Ditemukan: {len(signals)} saham kandidat naik\n"]
+    if st in {"stoch_oversold", "stochastic_oversold", "oversold"}:
+        found = f"Ditemukan: {len(signals)} saham Stochastic oversold\n"
+    else:
+        found = f"Ditemukan: {len(signals)} saham kandidat naik\n"
+    parts = [header + found]
     for s in signals[:12]:
         parts.append(format_signal_block(s, markdown=markdown))
         parts.append("")

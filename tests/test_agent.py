@@ -31,6 +31,15 @@ def test_agent_stock():
     assert plan.stock_code == "EMTK"
 
 
+def test_agent_stoch_oversold():
+    plan = understand("cek saham scoshatic oversold minggu ini", prefer_llm=False)
+    assert plan.kind == "screen"
+    assert plan.screen_type == "stoch_oversold"
+    assert plan.screen_label == "minggu ini"
+    assert plan.stoch_lookback == 5
+    assert "oversold" in plan.understanding.lower() or "Stochastic" in plan.understanding
+
+
 def test_agent_clarify_on_garbage():
     plan = understand("halo apa kabar cuaca", prefer_llm=False)
     assert plan.kind in {"clarify", "unknown"}
@@ -41,5 +50,6 @@ if __name__ == "__main__":
     test_agent_ihsg_natural()
     test_agent_screen()
     test_agent_stock()
+    test_agent_stoch_oversold()
     test_agent_clarify_on_garbage()
     print("OK: agent planner tests passed")

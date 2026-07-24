@@ -32,6 +32,13 @@ stoch_d_period: 3
 stoch_max: 85
 require_stoch: false
 
+# Screening Stochastic oversold (chat: "cek saham stochastic oversold")
+# Default screen_type: breakout | stoch_oversold
+screen_type: breakout
+stoch_oversold_max: 20
+stoch_oversold_lookback: 1
+stoch_oversold_min_score: 45
+
 # --- Akumulasi & money-flow (proksi bandarmology) ---
 accumulation_lookback: 10
 require_accumulation: true

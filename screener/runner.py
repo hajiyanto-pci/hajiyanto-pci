@@ -26,6 +26,8 @@ def run_screen(
     as_of: str | None = None,
     symbols: list[str] | None = None,
     min_score: float | None = None,
+    screen_type: str | None = None,
+    stoch_oversold_lookback: int | None = None,
     notify: bool = True,
     telegram: bool = True,
     whatsapp: bool = False,
@@ -40,6 +42,11 @@ def run_screen(
 
     if min_score is not None:
         cfg["min_score"] = min_score
+
+    if screen_type:
+        cfg["screen_type"] = screen_type
+    if stoch_oversold_lookback is not None:
+        cfg["stoch_oversold_lookback"] = int(stoch_oversold_lookback)
 
     cfg.setdefault("notify", {})
     if not notify:

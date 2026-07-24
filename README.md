@@ -28,6 +28,8 @@ Bot memakai **agent mode**: pahami dulu maksud chat → konfirmasi singkat → j
 dapatkah cek potensi ihsg
 ihsg hari ini
 cek saham potensi kemarin
+cek saham stochastic oversold hari ini
+cek saham scoshatic oversold minggu ini
 cek tanggal 20 july
 please cek saham emtk
 /watch EMTK

@@ -33,7 +33,8 @@ Contoh:
 • dapatkah cek potensi ihsg
 • ihsg hari ini / makro hari ini
 • cek saham potensi kemarin
-• saham hari ini
+• cek saham stochastic oversold hari ini
+• cek saham scoshatic oversold minggu ini
 • please cek saham emtk
 • /watch EMTK
 • /breakout
@@ -77,16 +78,27 @@ def send_text(token: str, chat_id: str | int, text: str, *, markdown: bool = Fal
 
 
 def _run_screen_and_reply(
-    token: str, chat_id: str | int, *, label: str, as_of_arg: str | None
+    token: str,
+    chat_id: str | int,
+    *,
+    label: str,
+    as_of_arg: str | None,
+    screen_type: str = "breakout",
+    stoch_lookback: int | None = None,
 ) -> None:
-    send_text(
-        token,
-        chat_id,
-        f"⏳ Memindai saham potensi naik ({label})...\nTunggu 10–40 detik.",
-    )
+    if screen_type == "stoch_oversold":
+        wait_msg = (
+            f"⏳ Screening Stochastic oversold ({label})...\n"
+            "Filter %K ≤ 20. Tunggu 10–40 detik."
+        )
+    else:
+        wait_msg = f"⏳ Memindai saham potensi naik ({label})...\nTunggu 10–40 detik."
+    send_text(token, chat_id, wait_msg)
     signals = run_screen(
         as_of=as_of_arg,
         mode="eod",
+        screen_type=screen_type,
+        stoch_oversold_lookback=stoch_lookback,
         notify=False,
         telegram=False,
         whatsapp=False,
@@ -96,9 +108,14 @@ def _run_screen_and_reply(
         mode="eod",
         markdown=False,
         as_of=as_of_arg,
+        screen_type=screen_type,
+        screen_label=label,
     )
     if not signals:
-        msg += "\n\nTidak ada yang lolos filter. Coba tanggal lain."
+        if screen_type == "stoch_oversold":
+            msg += "\n\nTidak ada yang oversold. Coba 'minggu ini' atau tanggal lain."
+        else:
+            msg += "\n\nTidak ada yang lolos filter. Coba tanggal lain."
     send_text(token, chat_id, msg)
 
 
@@ -196,7 +213,14 @@ def _execute_plan(token: str, chat_id: str | int, plan: AgentPlan) -> None:
         label = plan.screen_label or "terbaru"
         as_of_arg = plan.as_of.isoformat() if plan.as_of is not None else None
         try:
-            _run_screen_and_reply(token, chat_id, label=label, as_of_arg=as_of_arg)
+            _run_screen_and_reply(
+                token,
+                chat_id,
+                label=label,
+                as_of_arg=as_of_arg,
+                screen_type=plan.screen_type or "breakout",
+                stoch_lookback=plan.stoch_lookback,
+            )
         except Exception as exc:  # noqa: BLE001
             logger.exception("Gagal screening")
             send_text(token, chat_id, f"❌ Gagal analisa: {exc}")

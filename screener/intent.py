@@ -124,7 +124,14 @@ _NOT_TICKERS = {
     "outlook",
     "prediksi",
     "prospek",
+    "stoch",
+    "stochastic",
+    "oversold",
+    "minggu",
+    "pekan",
+    "week",
 }
+
 
 # Kata yang menandakan screening banyak saham (bukan 1 ticker)
 _SCREEN_HINTS = (
@@ -133,6 +140,9 @@ _SCREEN_HINTS = (
     "hari ini",
     "hariini",
     "today",
+    "minggu ini",
+    "pekan ini",
+    "this week",
     "potensi",
     "kandidat",
     "rekomendasi",
@@ -148,6 +158,9 @@ _SCREEN_HINTS = (
     "tanggal",
     "tgl",
     "naik",
+    "oversold",
+    "stochastic",
+    "stoch",
 )
 
 
@@ -157,6 +170,8 @@ class BotIntent:
     stock_code: str | None = None
     screen_label: str | None = None
     as_of: date | None = None
+    screen_type: str = "breakout"  # breakout | stoch_oversold
+    stoch_lookback: int | None = None
     raw: str = ""
 
 
@@ -185,6 +200,23 @@ def _normalize_chat(text: str) -> str:
         r"\bgimana\b": "bagaimana",
         r"\bgmn\b": "bagaimana",
         r"\bbgm\b": "bagaimana",
+        # typo stochastic
+        r"\bschocastic\b": "stochastic",
+        r"\bscoshatic\b": "stochastic",
+        r"\bscocastic\b": "stochastic",
+        r"\bstochastik\b": "stochastic",
+        r"\bstochatic\b": "stochastic",
+        r"\bstochasticc\b": "stochastic",
+        r"\bstochastc\b": "stochastic",
+        r"\bstochasstic\b": "stochastic",
+        r"\bstoch\b": "stochastic",
+        r"\bover\s*sold\b": "oversold",
+        r"\bjenuh\s*jual\b": "oversold",
+        r"\bmingguan\b": "minggu ini",
+        r"\bpekan\s*ini\b": "minggu ini",
+        r"\bthis\s*week\b": "minggu ini",
+        r"\bweek\s*ini\b": "minggu ini",
+        r"\bhari\s*ni\b": "hari ini",
     }
     for pat, rep in replacements.items():
         t = re.sub(pat, rep, t)
@@ -307,17 +339,37 @@ def extract_stock_code(text: str) -> str | None:
     return None
 
 
-def _extract_screen_as_of(lower: str) -> tuple[str, date | None]:
-    """Ambil tanggal screening dari frasa natural."""
+def _is_stoch_oversold_phrase(lower: str) -> bool:
+    has_stoch = "stochastic" in lower or "stoch" in lower
+    has_oversold = "oversold" in lower or "jenuh jual" in lower
+    # "stochastic oversold" / "oversold stochastic" / "saham oversold"
+    if has_stoch and has_oversold:
+        return True
+    if has_stoch and ("rendah" in lower or "lemah" in lower or "<20" in lower or "di bawah 20" in lower):
+        return True
+    if has_oversold and ("saham" in lower or "screening" in lower or "scan" in lower or "cek" in lower):
+        return True
+    return False
+
+
+def _extract_screen_as_of(lower: str) -> tuple[str, date | None, int | None]:
+    """Ambil tanggal/window screening dari frasa natural.
+
+    Return (label, as_of_date|None, stoch_lookback|None).
+    lookback dipakai khusus filter stoch oversold (1=hari ini, 5=minggu ini).
+    """
     # kemarin / yesterday
     if "kemarin" in lower or "yesterday" in lower or "kemaren" in lower:
-        return ("kemarin", previous_trading_day())
+        return ("kemarin", previous_trading_day(), 1)
+
+    if "minggu ini" in lower or "pekan ini" in lower:
+        return ("minggu ini", None, 5)
 
     if re.search(r"\bhari\s+ini\b", lower) or "hariini" in lower or "today" in lower:
-        return ("hari ini", None)
+        return ("hari ini", None, 1)
 
     if "sekarang" in lower or "terbaru" in lower or "latest" in lower:
-        return ("hari ini", None)
+        return ("hari ini", None, 1)
 
     # tanggal natural tersisa
     cleaned = lower
@@ -348,6 +400,10 @@ def _extract_screen_as_of(lower: str) -> tuple[str, date | None]:
         "untuk",
         "tanggal",
         "tgl",
+        "stochastic",
+        "oversold",
+        "minggu",
+        "pekan",
     ]
     for w in junk:
         cleaned = re.sub(rf"\b{re.escape(w)}\b", " ", cleaned)
@@ -355,14 +411,15 @@ def _extract_screen_as_of(lower: str) -> tuple[str, date | None]:
 
     if not cleaned:
         # default: hari ini jika user bilang "cek saham potensi" tanpa tanggal
-        return ("hari ini", None)
+        return ("hari ini", None, 1)
 
     try:
         d = parse_natural_date(cleaned)
-        return (d.isoformat(), d)
+        return (d.isoformat(), d, 1)
     except Exception:
         # fallback ke extract_date_query lama
-        return extract_date_query(lower)
+        label, as_of = extract_date_query(lower)
+        return (label, as_of, 1)
 
 
 def _is_ihsg_phrase(lower: str) -> bool:
@@ -419,6 +476,18 @@ def parse_user_intent(text: str) -> BotIntent:
     if lower in {"/breakout", "breakout", "/alert breakout", "cek breakout"}:
         return BotIntent(kind="breakout", raw=raw)
 
+    # Stochastic oversold: "cek saham stochastic oversold hari ini / minggu ini"
+    if _is_stoch_oversold_phrase(lower):
+        label, as_of, lookback = _extract_screen_as_of(lower)
+        return BotIntent(
+            kind="screen",
+            screen_label=label,
+            as_of=as_of,
+            screen_type="stoch_oversold",
+            stoch_lookback=lookback or 1,
+            raw=raw,
+        )
+
     # Screening natural: "cek saham potensi kemarin", "saham hari ini", dll
     if _is_screen_phrase(lower):
         # Kecuali jelas 1 ticker: "cek saham emtk" (tanpa potensi/kemarin/hari ini)
@@ -438,14 +507,24 @@ def parse_user_intent(text: str) -> BotIntent:
                 and "yesterday" not in lower
                 and not re.search(r"\bhari\s+ini\b", lower)
                 and "tanggal" not in lower
+                and "minggu ini" not in lower
+                and "oversold" not in lower
+                and "stochastic" not in lower
             )
             if only_stock:
                 code = m.group(1).upper()
         if code:
             return BotIntent(kind="stock", stock_code=code, raw=raw)
 
-        label, as_of = _extract_screen_as_of(lower)
-        return BotIntent(kind="screen", screen_label=label, as_of=as_of, raw=raw)
+        label, as_of, lookback = _extract_screen_as_of(lower)
+        return BotIntent(
+            kind="screen",
+            screen_label=label,
+            as_of=as_of,
+            screen_type="breakout",
+            stoch_lookback=lookback,
+            raw=raw,
+        )
 
     # Single stock
     code = extract_stock_code(raw)

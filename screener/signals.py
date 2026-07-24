@@ -476,15 +476,238 @@ def _score_multifactor(
     return min(score, 100.0), factors, reasons
 
 
+def evaluate_stoch_oversold(
+    yahoo_symbol: str,
+    df: pd.DataFrame,
+    cfg: dict,
+    *,
+    now: datetime | None = None,
+) -> Signal | None:
+    """Screen saham Stochastic oversold (hari ini / lookback minggu)."""
+    mode = str(cfg.get("mode", "eod")).lower()
+    as_of = cfg.get("as_of")
+    vol_days = int(cfg.get("volume_avg_days", 20))
+    min_avg_vol = float(cfg.get("min_avg_volume", 500_000))
+    min_price = float(cfg.get("min_price", 50))
+    stoch_k_period = int(cfg.get("stoch_k_period", 14))
+    stoch_d_period = int(cfg.get("stoch_d_period", 3))
+    oversold_max = float(cfg.get("stoch_oversold_max", 20))
+    lookback = max(1, int(cfg.get("stoch_oversold_lookback", 1)))
+    rsi_period = int(cfg.get("rsi_period", 14))
+    ma_period = int(cfg.get("ma_period", 20))
+    min_score = float(cfg.get("stoch_oversold_min_score", 45))
+
+    work = _prepare_frame(df, mode, now=now, as_of=as_of)
+    need = max(vol_days, stoch_k_period, ma_period, lookback, 35) + 2
+    if work is None or len(work) < need:
+        return None
+
+    close = work["Close"].astype(float)
+    high = work["High"].astype(float)
+    low = work["Low"].astype(float)
+    volume = work["Volume"].astype(float)
+
+    last_close = float(close.iloc[-1])
+    last_vol = float(volume.iloc[-1])
+    if not np.isfinite(last_close) or last_close < min_price:
+        return None
+
+    avg_vol = float(volume.iloc[-(vol_days + 1) : -1].mean())
+    if not np.isfinite(avg_vol) or avg_vol < min_avg_vol:
+        return None
+    vol_ratio = last_vol / avg_vol if avg_vol > 0 else 0.0
+
+    k_series, d_series = stochastic(
+        high, low, close, k_period=stoch_k_period, d_period=stoch_d_period
+    )
+    last_k = float(k_series.iloc[-1]) if np.isfinite(k_series.iloc[-1]) else 50.0
+    last_d = float(d_series.iloc[-1]) if np.isfinite(d_series.iloc[-1]) else 50.0
+    prev_k = float(k_series.iloc[-2]) if len(k_series) > 1 and np.isfinite(k_series.iloc[-2]) else last_k
+    prev_d = float(d_series.iloc[-2]) if len(d_series) > 1 and np.isfinite(d_series.iloc[-2]) else last_d
+    stoch_cross_up = prev_k <= prev_d and last_k > last_d
+
+    window_k = k_series.iloc[-lookback:].astype(float)
+    window_k = window_k[np.isfinite(window_k)]
+    if window_k.empty:
+        return None
+    min_k = float(window_k.min())
+    currently_oversold = last_k <= oversold_max
+    was_oversold = min_k <= oversold_max
+    if not was_oversold:
+        return None
+
+    rsi_series = rsi(close, rsi_period)
+    last_rsi = float(rsi_series.iloc[-1]) if np.isfinite(rsi_series.iloc[-1]) else 50.0
+    ma_series = sma(close, ma_period)
+    last_ma = float(ma_series.iloc[-1]) if np.isfinite(ma_series.iloc[-1]) else last_close
+    above_ma = last_close > last_ma
+
+    money_ok, money_pts, money_note = bandar_flow_score(high, low, close, volume)
+    from screener.indicators import chaikin_money_flow, money_flow_index
+
+    cmf_v = float(chaikin_money_flow(high, low, close, volume).iloc[-1] or 0)
+    if not np.isfinite(cmf_v):
+        cmf_v = 0.0
+    mfi_v = float(money_flow_index(high, low, close, volume).iloc[-1] or 50)
+    if not np.isfinite(mfi_v):
+        mfi_v = 50.0
+
+    accumulating, accum_note = is_accumulating(close, volume, lookback=10)
+    resist = resistance_level(high, int(cfg.get("resistance_lookback", 20))) or last_close
+    breakout_pct = pct_change(last_close, resist) if resist else 0.0
+    is_breakout = last_close >= resist if resist else False
+
+    # Skor khusus oversold (bukan formula breakout)
+    score = 0.0
+    reasons: list[str] = []
+    factors: dict[str, float] = {}
+
+    # Semakin dalam oversold → skor lebih tinggi
+    depth = max(0.0, oversold_max - min(last_k if currently_oversold else min_k, oversold_max))
+    stoch_pts = 35 + min(25.0, depth * 1.5)
+    factors["stochastic"] = stoch_pts
+    if currently_oversold:
+        reasons.append(f"Stoch oversold sekarang (%K {last_k:.0f} / %D {last_d:.0f})")
+    else:
+        reasons.append(
+            f"Stoch pernah oversold {lookback}d terakhir "
+            f"(min %K {min_k:.0f}; sekarang {last_k:.0f})"
+        )
+        score -= 8  # sedikit penalti jika sudah naik dari oversold
+
+    if stoch_cross_up and last_k <= oversold_max + 10:
+        factors["stoch_turn"] = 15
+        reasons.append("Stoch mulai putar naik (golden cross di zona rendah)")
+    elif last_k > last_d and last_k <= oversold_max + 5:
+        factors["stoch_turn"] = 8
+        reasons.append("Stoch %K di atas %D di zona oversold")
+    else:
+        factors["stoch_turn"] = 0
+
+    if last_rsi <= 30:
+        factors["rsi"] = 12
+        reasons.append(f"RSI juga oversold ({last_rsi:.0f})")
+    elif last_rsi <= 40:
+        factors["rsi"] = 8
+        reasons.append(f"RSI rendah ({last_rsi:.0f})")
+    else:
+        factors["rsi"] = 3
+        reasons.append(f"RSI {last_rsi:.0f}")
+
+    if vol_ratio >= 1.5:
+        factors["volume"] = 12
+        reasons.append(f"Volume aktif ({vol_ratio:.1f}x)")
+    elif vol_ratio >= 1.0:
+        factors["volume"] = 7
+        reasons.append(f"Volume normal ({vol_ratio:.1f}x)")
+    else:
+        factors["volume"] = 3
+        reasons.append(f"Volume tipis ({vol_ratio:.1f}x)")
+
+    if accumulating:
+        factors["accumulation"] = 10
+        reasons.append(accum_note)
+    else:
+        factors["accumulation"] = 0
+
+    factors["money_flow"] = min(10.0, float(money_pts) * 0.6)
+    reasons.append(money_note)
+
+    if above_ma:
+        factors["ma"] = 5
+        reasons.append("Harga di atas MA (tren masih relatif kuat)")
+    else:
+        factors["ma"] = 2
+        reasons.append("Harga di bawah MA (potensi mean-reversion)")
+
+    score += float(sum(factors.values()))
+    score = max(0.0, min(100.0, score))
+
+    window_label = "hari ini" if lookback <= 1 else f"{lookback} hari perdagangan"
+    reasons.insert(0, f"Filter Stochastic oversold ({window_label}, ambang %K ≤ {oversold_max:.0f})")
+    if as_of is not None:
+        bar_day = _bar_date(work.index[-1])
+        reasons.insert(1, f"Analisa as-of {as_of.isoformat()} (bar {bar_day.isoformat()})")
+
+    if score < min_score:
+        return None
+
+    levels = suggest_sl_tp(
+        last_close,
+        high,
+        low,
+        close,
+        atr_period=int(cfg.get("atr_period", 14)),
+        sl_atr_mult=float(cfg.get("sl_atr_mult", 1.5)),
+        tp1_rr=float(cfg.get("tp1_rr", 1.5)),
+        tp2_rr=float(cfg.get("tp2_rr", 2.5)),
+    )
+    reasons.append(
+        f"SL {levels['sl']:,.0f} (-{levels['risk_pct']:.1f}%) | "
+        f"TP1 {levels['tp1']:,.0f} (+{levels['tp1_pct']:.1f}%) | "
+        f"TP2 {levels['tp2']:,.0f} (+{levels['tp2_pct']:.1f}%)"
+    )
+
+    checklist = {
+        "volume": vol_ratio >= 1.0,
+        "above_ma": above_ma,
+        "accumulation": accumulating,
+        "breakout": is_breakout,
+        "stochastic": currently_oversold or was_oversold,
+        "money_flow": money_ok,
+        "macd": False,
+        "stoch_oversold": currently_oversold or was_oversold,
+    }
+
+    return Signal(
+        symbol=from_yahoo_symbol(yahoo_symbol),
+        price=round(last_close, 2),
+        volume=round(last_vol, 0),
+        volume_ratio=round(vol_ratio, 2),
+        resistance=round(float(resist), 2),
+        breakout_pct=round(breakout_pct, 2),
+        rsi=round(last_rsi, 1),
+        stoch_k=round(last_k, 1),
+        stoch_d=round(last_d, 1),
+        cmf=round(cmf_v, 3),
+        mfi=round(mfi_v, 1),
+        macd_hist=0.0,
+        ma=round(last_ma, 2),
+        above_ma=above_ma,
+        accumulating=accumulating,
+        breakout=is_breakout,
+        volume_ok=vol_ratio >= 1.0,
+        stoch_ok=currently_oversold or was_oversold,
+        money_flow_ok=money_ok,
+        macd_ok=False,
+        score=round(score, 1),
+        factor_scores={k: round(v, 1) for k, v in factors.items()},
+        reasons=reasons,
+        entry=levels["entry"],
+        sl=levels["sl"],
+        tp1=levels["tp1"],
+        tp2=levels["tp2"],
+        risk_pct=levels["risk_pct"],
+        tp1_pct=levels["tp1_pct"],
+        tp2_pct=levels["tp2_pct"],
+        checklist=checklist,
+        mode=mode,
+    )
+
+
 def screen_all(
     histories: dict[str, pd.DataFrame],
     cfg: dict,
     *,
     now: datetime | None = None,
 ) -> list[Signal]:
+    screen_type = str(cfg.get("screen_type", "breakout")).lower()
     signals: list[Signal] = []
     for sym, df in histories.items():
-        sig = evaluate_symbol(sym, df, cfg, now=now)
+        if screen_type in {"stoch_oversold", "stochastic_oversold", "oversold"}:
+            sig = evaluate_stoch_oversold(sym, df, cfg, now=now)
+        else:
+            sig = evaluate_symbol(sym, df, cfg, now=now)
         if sig is not None:
             signals.append(sig)
     signals.sort(key=lambda s: s.score, reverse=True)

@@ -42,7 +42,12 @@ TOOLS_CATALOG = """
 Tools yang tersedia:
 - help: tampilkan bantuan
 - ihsg: outlook IHSG + makro + berita
-- screen: screening saham potensi naik (bisa as_of: kemarin / hari ini / tanggal)
+- screen: screening saham (default potensi naik / breakout)
+  parameter tambahan:
+  - screen_type: "breakout" (default) atau "stoch_oversold"
+  - screen_label: "kemarin" | "hari ini" | "minggu ini" | "YYYY-MM-DD"
+  - as_of: YYYY-MM-DD atau null
+  - stoch_lookback: 1 (hari ini) atau 5 (minggu ini) untuk stoch_oversold
 - stock: analisa 1 kode saham BEI (stock_code wajib, contoh EMTK)
 - breakout: cek saham yang baru break resistance
 - watch: tambah ke watchlist (stock_code)
@@ -60,8 +65,10 @@ Balas HANYA JSON valid tanpa markdown:
 {{
   "kind": "<tool>",
   "stock_code": null atau "KODE",
-  "screen_label": null atau "kemarin"|"hari ini"|"YYYY-MM-DD",
+  "screen_label": null atau "kemarin"|"hari ini"|"minggu ini"|"YYYY-MM-DD",
   "as_of": null atau "YYYY-MM-DD",
+  "screen_type": "breakout" atau "stoch_oversold",
+  "stoch_lookback": null atau angka,
   "confidence": 0.0-1.0,
   "understanding": "satu kalimat bahasa Indonesia: apa yang user minta",
   "clarify_question": null atau pertanyaan klarifikasi
@@ -71,7 +78,10 @@ Balas HANYA JSON valid tanpa markdown:
 
 Aturan:
 - "potensi ihsg", "makro", "outlook indeks" → ihsg
-- "saham potensi", "kandidat naik", "screening" tanpa kode → screen
+- "saham potensi", "kandidat naik", "screening" tanpa kode → screen (screen_type=breakout)
+- "stochastic oversold", "stoch oversold", "saham oversold" → screen (screen_type=stoch_oversold)
+- "minggu ini" + oversold → stoch_lookback=5, screen_label="minggu ini"
+- "hari ini" + oversold → stoch_lookback=1, screen_label="hari ini"
 - "cek EMTK", "analisa BBCA" → stock
 - Jika ambigu antara screen vs stock vs ihsg → clarify
 - Kode saham BEI biasanya 4 huruf (kadang 3–5)
@@ -84,6 +94,8 @@ class AgentPlan:
     stock_code: str | None = None
     screen_label: str | None = None
     as_of: date | None = None
+    screen_type: str = "breakout"
+    stoch_lookback: int | None = None
     confidence: float = 0.0
     understanding: str = ""
     clarify_question: str | None = None
@@ -105,6 +117,8 @@ def _intent_understanding(intent: BotIntent) -> str:
         return "Kamu ingin outlook IHSG beserta konteks makro dan berita."
     if intent.kind == "screen":
         label = intent.screen_label or "hari ini"
+        if getattr(intent, "screen_type", "breakout") == "stoch_oversold":
+            return f"Kamu ingin screening saham Stochastic oversold untuk {label}."
         return f"Kamu ingin screening saham potensi naik untuk {label}."
     if intent.kind == "stock" and intent.stock_code:
         return f"Kamu ingin analisa teknikal saham {intent.stock_code}."
@@ -146,6 +160,7 @@ def plan_from_rules(text: str) -> AgentPlan:
                 "Maksudnya apa ya?\n"
                 "• Outlook IHSG/makro → ketik: ihsg hari ini\n"
                 "• Screening potensi naik → ketik: saham potensi hari ini\n"
+                "• Stochastic oversold → ketik: cek saham stochastic oversold hari ini\n"
                 "• Analisa 1 saham → ketik: cek saham EMTK\n"
                 "• Breakout baru → ketik: /breakout"
             ),
@@ -157,6 +172,8 @@ def plan_from_rules(text: str) -> AgentPlan:
         stock_code=intent.stock_code,
         screen_label=intent.screen_label,
         as_of=intent.as_of,
+        screen_type=getattr(intent, "screen_type", "breakout") or "breakout",
+        stoch_lookback=getattr(intent, "stoch_lookback", None),
         confidence=conf,
         understanding=understanding,
         source="rules",
@@ -256,6 +273,23 @@ def plan_from_llm(text: str) -> AgentPlan | None:
     else:
         screen_label = screen_label.strip()
 
+    screen_type = str(data.get("screen_type") or "breakout").lower().strip()
+    if screen_type not in {"breakout", "stoch_oversold", "stochastic_oversold", "oversold"}:
+        screen_type = "breakout"
+    if screen_type in {"stochastic_oversold", "oversold"}:
+        screen_type = "stoch_oversold"
+
+    stoch_lookback = data.get("stoch_lookback")
+    try:
+        stoch_lookback = int(stoch_lookback) if stoch_lookback is not None else None
+    except (TypeError, ValueError):
+        stoch_lookback = None
+    if kind == "screen" and screen_type == "stoch_oversold" and stoch_lookback is None:
+        if screen_label and "minggu" in screen_label:
+            stoch_lookback = 5
+        else:
+            stoch_lookback = 1
+
     try:
         confidence = float(data.get("confidence", 0.7))
     except (TypeError, ValueError):
@@ -281,6 +315,8 @@ def plan_from_llm(text: str) -> AgentPlan | None:
                 stock_code=stock_code,
                 screen_label=screen_label,
                 as_of=as_of,
+                screen_type=screen_type,
+                stoch_lookback=stoch_lookback,
                 raw=text,
             )
         )
@@ -290,6 +326,8 @@ def plan_from_llm(text: str) -> AgentPlan | None:
         stock_code=stock_code,
         screen_label=screen_label,
         as_of=as_of,
+        screen_type=screen_type,
+        stoch_lookback=stoch_lookback,
         confidence=confidence,
         understanding=understanding,
         clarify_question=clarify_q,
@@ -341,7 +379,10 @@ def format_understanding(plan: AgentPlan) -> str:
         lines.append("→ Menjalankan agent: IHSG + makro + berita")
     elif plan.kind == "screen":
         label = plan.screen_label or "hari ini"
-        lines.append(f"→ Menjalankan agent: screening potensi ({label})")
+        if plan.screen_type == "stoch_oversold":
+            lines.append(f"→ Menjalankan agent: Stochastic oversold ({label})")
+        else:
+            lines.append(f"→ Menjalankan agent: screening potensi ({label})")
     elif plan.kind == "stock" and plan.stock_code:
         lines.append(f"→ Menjalankan agent: analisa {plan.stock_code}")
     elif plan.kind == "breakout":

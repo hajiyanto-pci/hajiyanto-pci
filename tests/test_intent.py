@@ -47,9 +47,25 @@ def test_ihsg_phrases():
         assert intent.kind == "ihsg", phrase
 
 
+def test_stoch_oversold_phrases():
+    for phrase, label, lookback in [
+        ("cek saham stochastic oversold hari ini", "hari ini", 1),
+        ("cek saham scoshatic oversold hari ni", "hari ini", 1),
+        ("cek saham schocastic oversold minggu ini", "minggu ini", 5),
+        ("saham stoch oversold pekan ini", "minggu ini", 5),
+        ("cek saham oversold hari ini", "hari ini", 1),
+    ]:
+        intent = parse_user_intent(phrase)
+        assert intent.kind == "screen", phrase
+        assert intent.screen_type == "stoch_oversold", phrase
+        assert intent.screen_label == label, (phrase, intent.screen_label)
+        assert intent.stoch_lookback == lookback, (phrase, intent.stoch_lookback)
+
+
 if __name__ == "__main__":
     test_screen_phrases()
     test_stock_phrases()
     test_kemarin_label()
     test_ihsg_phrases()
+    test_stoch_oversold_phrases()
     print("OK: intent natural tests passed")
