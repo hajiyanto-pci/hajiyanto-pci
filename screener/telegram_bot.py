@@ -1,10 +1,9 @@
-"""Telegram bot interaktif untuk cek saham potensi naik & analisa 1 ticker.
+"""Telegram bot interaktif — agent-style: pahami request dulu, lalu analisa.
 
 Contoh natural:
+  dapatkah cek potensi ihsg
   cek saham potensi kemarin
-  saham hari ini
   please cek saham emtk
-  /kemarin
 """
 
 from __future__ import annotations
@@ -17,29 +16,32 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
+from screener.agent import AgentPlan, format_understanding, understand
 from screener.alerts import add_watch, load_watchlist, remove_watch, run_breakout_alert_job
 from screener.analyze import analyze_stock, format_stock_report
 from screener.ihsg import analyze_ihsg, format_ihsg_report
-from screener.intent import parse_user_intent
 from screener.notifier import build_message
 from screener.runner import run_screen
 
 logger = logging.getLogger(__name__)
 
-HELP_TEXT = """📈 Saham Gacor Bot
+HELP_TEXT = """📈 Saham Gacor Bot (agent mode)
 
-Bisa pakai bahasa natural, contoh:
+Chat bebas — bot akan pahami dulu maksudmu, baru analisa.
 
+Contoh:
+• dapatkah cek potensi ihsg
+• ihsg hari ini / makro hari ini
 • cek saham potensi kemarin
 • saham hari ini
-• ihsg hari ini / potensi ihsg
-• cek tanggal 20 july
 • please cek saham emtk
 • /watch EMTK
 • /breakout
 
 Perintah singkat:
 /kemarin | /hariini | /ihsg | /help | /watchlist
+
+Opsional NLU AI: set OPENAI_API_KEY di .env
 """
 
 
@@ -100,15 +102,21 @@ def _run_screen_and_reply(
     send_text(token, chat_id, msg)
 
 
-def handle_command(token: str, chat_id: str | int, text: str) -> None:
-    intent = parse_user_intent(text)
-    logger.info("Intent: %s | raw=%r", intent.kind, intent.raw)
-
-    if intent.kind == "help":
+def _execute_plan(token: str, chat_id: str | int, plan: AgentPlan) -> None:
+    """Jalankan tool analisa sesuai plan agent."""
+    if plan.kind == "help":
         send_text(token, chat_id, HELP_TEXT)
         return
 
-    if intent.kind == "watchlist":
+    if plan.kind in {"clarify", "unknown"}:
+        q = plan.clarify_question or (
+            "Maaf, saya belum yakin maksudnya.\n"
+            "Coba: ihsg hari ini | saham potensi hari ini | cek saham EMTK | /help"
+        )
+        send_text(token, chat_id, f"❓ {plan.understanding}\n\n{q}")
+        return
+
+    if plan.kind == "watchlist":
         syms = load_watchlist()
         if not syms:
             send_text(token, chat_id, "Watchlist kosong. Contoh: /watch EMTK")
@@ -116,28 +124,28 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
             send_text(token, chat_id, "Watchlist:\n" + ", ".join(syms))
         return
 
-    if intent.kind == "watch" and intent.stock_code:
-        syms = add_watch(intent.stock_code)
+    if plan.kind == "watch" and plan.stock_code:
+        syms = add_watch(plan.stock_code)
         send_text(
             token,
             chat_id,
-            f"✅ {intent.stock_code} ditambahkan ke watchlist.\n"
+            f"✅ {plan.stock_code} ditambahkan ke watchlist.\n"
             f"Daftar: {', '.join(syms)}\n"
             "Kamu akan dapat notif jika baru break resistance.",
         )
         return
 
-    if intent.kind == "unwatch" and intent.stock_code:
-        syms = remove_watch(intent.stock_code)
+    if plan.kind == "unwatch" and plan.stock_code:
+        syms = remove_watch(plan.stock_code)
         send_text(
             token,
             chat_id,
-            f"🗑️ {intent.stock_code} dihapus dari watchlist.\n"
+            f"🗑️ {plan.stock_code} dihapus dari watchlist.\n"
             f"Sisa: {', '.join(syms) if syms else '(kosong)'}",
         )
         return
 
-    if intent.kind == "breakout":
+    if plan.kind == "breakout":
         send_text(token, chat_id, "⏳ Cek breakout resistance baru...")
         try:
             pending = run_breakout_alert_job(
@@ -151,7 +159,7 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
             send_text(token, chat_id, f"❌ Gagal cek breakout: {exc}")
         return
 
-    if intent.kind == "ihsg":
+    if plan.kind == "ihsg":
         send_text(
             token,
             chat_id,
@@ -168,8 +176,8 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
             send_text(token, chat_id, f"❌ Gagal analisa IHSG: {exc}")
         return
 
-    if intent.kind == "stock" and intent.stock_code:
-        code = intent.stock_code
+    if plan.kind == "stock" and plan.stock_code:
+        code = plan.stock_code
         send_text(token, chat_id, f"⏳ Analisa teknikal {code}...\nTunggu sebentar.")
         try:
             report = analyze_stock(code)
@@ -184,9 +192,9 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
             )
         return
 
-    if intent.kind == "screen":
-        label = intent.screen_label or "terbaru"
-        as_of_arg = intent.as_of.isoformat() if intent.as_of is not None else None
+    if plan.kind == "screen":
+        label = plan.screen_label or "terbaru"
+        as_of_arg = plan.as_of.isoformat() if plan.as_of is not None else None
         try:
             _run_screen_and_reply(token, chat_id, label=label, as_of_arg=as_of_arg)
         except Exception as exc:  # noqa: BLE001
@@ -199,12 +207,30 @@ def handle_command(token: str, chat_id: str | int, text: str) -> None:
         chat_id,
         "Maaf, saya belum yakin maksudnya.\n\n"
         "Coba contoh ini:\n"
-        "• cek saham potensi kemarin\n"
+        "• dapatkah cek potensi ihsg\n"
         "• saham hari ini\n"
-        "• ihsg hari ini\n"
         "• please cek saham emtk\n"
         "• /help",
     )
+
+
+def handle_command(token: str, chat_id: str | int, text: str) -> None:
+    """Agent flow: understand → confirm → execute tool."""
+    plan = understand(text)
+    logger.info(
+        "Agent plan: kind=%s conf=%.2f src=%s raw=%r | %s",
+        plan.kind,
+        plan.confidence,
+        plan.source,
+        plan.raw,
+        plan.understanding,
+    )
+
+    # Selalu tampilkan pemahaman dulu (kecuali help singkat)
+    if plan.kind != "help":
+        send_text(token, chat_id, format_understanding(plan))
+
+    _execute_plan(token, chat_id, plan)
 
 
 def poll_forever(token: str, allowed_chat_id: str | None = None) -> None:
@@ -214,11 +240,12 @@ def poll_forever(token: str, allowed_chat_id: str | None = None) -> None:
         pass
 
     offset = None
-    print("Bot online. Contoh chat natural:")
+    llm_on = bool(os.getenv("OPENAI_API_KEY", "").strip())
+    print("Bot online (agent mode). Contoh:")
+    print("  dapatkah cek potensi ihsg")
     print("  cek saham potensi kemarin")
-    print("  saham hari ini")
-    print("  ihsg hari ini / potensi ihsg")
     print("  please cek saham emtk")
+    print(f"  NLU LLM: {'ON' if llm_on else 'OFF (rules only; set OPENAI_API_KEY untuk AI)'}")
     print("Menunggu pesan... (Ctrl+C untuk stop)")
 
     while True:

@@ -20,22 +20,22 @@ Hasil ke **Telegram/WhatsApp**, bisa dijalankan **online via GitHub Actions** (t
 
 ## Chat ke bot Telegram
 
-Setelah `python run_bot.py` berjalan (atau Cloud Agent online), chat `@Sahamgacor_bot`:
+Setelah `python run_bot.py` berjalan (atau Cloud Agent online), chat `@Sahamgacor_bot`.
+
+Bot memakai **agent mode**: pahami dulu maksud chat → konfirmasi singkat → jalankan tool analisa.
 
 ```
-/start
-/kemarin
-cek tanggal 20 july
-cek 20 juli 2026
-please cek saham emtk
-cek saham BBCA
-/saham EMTK
+dapatkah cek potensi ihsg
 ihsg hari ini
-potensi ihsg
-/ihsg
-/hariini
+cek saham potensi kemarin
+cek tanggal 20 july
+please cek saham emtk
+/watch EMTK
+/breakout
 /help
 ```
+
+Opsional NLU lebih bebas: set `OPENAI_API_KEY` di `.env` (lihat `.env.example`).
 
 ## Cara kerja skor
 

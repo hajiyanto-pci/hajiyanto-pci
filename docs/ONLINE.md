@@ -97,4 +97,6 @@ potensi ihsg
 
 Bot IHSG menggabungkan teknikal `^JKSE` (Yahoo), snapshot makro (USD/IDR, S&P, Nasdaq, minyak, emas, US10Y), dan headline Google News terkait IHSG/BI/rupiah.
 
+Alur bot = **agent mode**: pahami chat → konfirmasi singkat ("Saya paham…") → jalankan tool. Opsional `OPENAI_API_KEY` untuk NLU lebih bebas.
+
 Untuk notifikasi otomatis tiap sore tanpa chat, tetap pakai GitHub Actions (tambahkan Secrets di repo Settings).

@@ -66,6 +66,25 @@ _STOP = {
     "kandidat",
     "list",
     "daftar",
+    "halo",
+    "hai",
+    "hello",
+    "hi",
+    "pagi",
+    "siang",
+    "sore",
+    "malam",
+    "kabar",
+    "cuaca",
+    "terima",
+    "kasih",
+    "thanks",
+    "makasih",
+    "bisa",
+    "mau",
+    "ingin",
+    "maaf",
+    "kedepan",
 }
 
 _NOT_TICKERS = {
@@ -143,7 +162,7 @@ class BotIntent:
 
 def _normalize_chat(text: str) -> str:
     t = (text or "").strip().lower()
-    # typo umum
+    # typo / bahasa santai umum
     replacements = {
         r"\bek\b": "cek",
         r"\bcok\b": "cek",
@@ -154,6 +173,18 @@ def _normalize_chat(text: str) -> str:
         r"\bkemaren\b": "kemarin",
         r"\bpotensi\s+naiknya\b": "potensi naik",
         r"\bsahm\b": "saham",
+        r"\bdapatkah\b": "tolong",
+        r"\bdapatkh\b": "tolong",
+        r"\bdapetah\b": "tolong",
+        r"\bbisakah\b": "tolong",
+        r"\bbisa\s+tolong\b": "tolong",
+        r"\bminta\s+tolong\b": "tolong",
+        r"\bke\s+depan\b": "kedepan",
+        r"\bkedeapan\b": "kedepan",
+        r"\bkedepannya\b": "kedepan",
+        r"\bgimana\b": "bagaimana",
+        r"\bgmn\b": "bagaimana",
+        r"\bbgm\b": "bagaimana",
     }
     for pat, rep in replacements.items():
         t = re.sub(pat, rep, t)
@@ -266,10 +297,13 @@ def extract_stock_code(text: str) -> str | None:
 
     tokens = re.findall(r"[a-z]{3,5}", lower)
     candidates = [t for t in tokens if t not in _STOP and t not in _NOT_TICKERS]
-    if len(candidates) == 1:
-        return candidates[0].upper()
-    if candidates:
-        return candidates[-1].upper()
+    # Hanya terima bare ticker jika pesan hampir murni 1 kode (hindari salah baca chat bebas)
+    if len(candidates) == 1 and len(tokens) <= 3:
+        # butuh sinyal analisa/cek, atau pesan hanya kode saja
+        if len(tokens) == 1 or any(
+            w in lower for w in ("cek", "check", "analisa", "analisis", "info", "lihat", "tolong")
+        ):
+            return candidates[0].upper()
     return None
 
 
