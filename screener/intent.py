@@ -232,6 +232,7 @@ def _normalize_chat(text: str) -> str:
         r"\bstochasticc\b": "stochastic",
         r"\bstochastc\b": "stochastic",
         r"\bstochasstic\b": "stochastic",
+        r"\bstochastoc\b": "stochastic",
         r"\bstoch\b": "stochastic",
         r"\bover\s*sold\b": "oversold",
         r"\bjenuh\s*jual\b": "oversold",
