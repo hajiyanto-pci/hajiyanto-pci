@@ -1,0 +1,16 @@
+# Google Calendar OAuth secrets — never commit tokens/keys
+secrets/*
+!secrets/README.md
+**/credentials.json
+**/token.json
+**/client_secret*.json
+config/calendar-project-map.json
+.env
+.env.*
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/

@@ -1,0 +1,51 @@
+{
+  "items": [
+    {
+      "id": "meet-standup-2026-07-22",
+      "summary": "Daily standup — delivery sync",
+      "description": "Review blockers, prioritize IDX screener Telegram bot tasks, confirm EOD alert schedule and GitHub Actions secrets setup.",
+      "location": "Google Meet",
+      "calendar_id": "primary",
+      "start": "2026-07-22T09:00:00+07:00",
+      "end": "2026-07-22T09:30:00+07:00",
+      "status": "confirmed",
+      "attendees": ["hajiyanto@portcities.net", "team@example.com"],
+      "hangout_link": "https://meet.google.com/example-standup"
+    },
+    {
+      "id": "meet-client-2026-07-23",
+      "summary": "Client sync: stock screener + Telegram alerts",
+      "description": "Walk through volume breakout screening criteria, notification channels (Telegram/WhatsApp), SL/TP suggestions, and next iteration for natural-language chat intents.",
+      "location": "Zoom",
+      "calendar_id": "primary",
+      "start": "2026-07-23T10:00:00+07:00",
+      "end": "2026-07-23T11:00:00+07:00",
+      "status": "confirmed",
+      "attendees": ["hajiyanto@portcities.net", "client@example.com"],
+      "hangout_link": ""
+    },
+    {
+      "id": "meet-deep-2026-07-24",
+      "summary": "Technical design: hajiyanto-pci NLU + IHSG outlook",
+      "description": "Deep-dive session on agent-style intent parsing before stock tools, Stochastic/bandarmology presets, messy-prompt tolerance, and Yahoo macro/news enrichment for IHSG questions.",
+      "location": "Google Meet",
+      "calendar_id": "primary",
+      "start": "2026-07-24T13:00:00+07:00",
+      "end": "2026-07-24T16:00:00+07:00",
+      "status": "confirmed",
+      "attendees": ["hajiyanto@portcities.net", "eng@example.com", "qa@example.com"],
+      "hangout_link": "https://meet.google.com/example-design"
+    },
+    {
+      "id": "meet-1on1-2026-07-25",
+      "summary": "1:1 weekly coaching",
+      "description": "Career and delivery coaching: workload balance, timesheet discipline, and prioritization across active workspaces under /home/haji/git.",
+      "location": "Offline",
+      "calendar_id": "primary",
+      "start": "2026-07-25T15:00:00+07:00",
+      "end": "2026-07-25T15:45:00+07:00",
+      "status": "confirmed",
+      "attendees": ["hajiyanto@portcities.net", "manager@example.com"]
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "generated_at": "2026-07-26T01:17:12.171789Z",
+  "since": "2026-07-19T01:17:12.171789Z",
+  "until": "2026-07-26T01:17:12.171789Z",
+  "timezone": "Asia/Jakarta",
+  "git_home": "/workspace",
+  "max_line_hours": 2.0,
+  "total_hours": 9.5,
+  "calendar_enabled": true,
+  "calendar_event_count": 4,
+  "projects": [
+    {
+      "project": "hajiyanto-pci",
+      "repo_path": "/workspace",
+      "remote": "https://***@github.com/hajiyanto-pci/hajiyanto-pci",
+      "commit_count": 24,
+      "meeting_count": 3,
+      "lines": [
+        {
+          "date": "2026-07-22",
+          "project": "hajiyanto-pci",
+          "workspace": "calendar:primary",
+          "start_time": "09:00",
+          "end_time": "09:30",
+          "hours": 0.5,
+          "description": "Calendar meeting for project `hajiyanto-pci`: participated in \"Daily standup — delivery sync\" (09:00–09:30 Asia/Jakarta). Location/channel: Google Meet. Attendees: hajiyanto@portcities.net, team@example.com. Agenda and discussion notes: Review blockers, prioritize IDX screener Telegram bot tasks, confirm EOD alert schedule and GitHub Actions secrets setup. Outcomes from this block include alignment on priorities, clarification of requirements/blockers, and agreed next actions for delivery follow-up.",
+          "evidence": "gcal:meet-standup-2026-07-22 | Daily standup — delivery sync | 2026-07-22T09:00:00+07:00 → 2026-07-22T09:30:00+07:00",
+          "part": 1,
+          "parts_total": 1,
+          "source": "calendar"
+        },
+        {
+          "date": "2026-07-23",
+          "project": "hajiyanto-pci",
+          "workspace": "/workspace",
+          "start_time": "03:26",
+          "end_time": "04:26",
+          "hours": 1.0,
+          "description": "Project workspace `hajiyanto-pci`: continued hands-on engineering on the active codebase, covering implementation, validation, and remote synchronization for the workstream reflected by commits [66ade088, 2b37b7ed]. Primary delivery focus included Add IDX stock screener with volume breakout alerts; Recommend EOD alerts and add morning/midday modes. Activities in this block spanned requirements clarification with AI-assisted prompts, iterative coding against `origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804`, local verification of behavior, and preparing/pushing changes for review. Observed code churn in-scope for this segment: approximately +1275/-62 lines across the touched files. Commit timestamps (local Asia/Jakarta) clustered around 03:51–04:04. Documentation of intent was kept aligned with the commit messages to support traceability for weekly timesheet reporting and stakeholder status updates.",
+          "evidence": "66ade088 Add IDX stock screener with volume breakout alerts; 2b37b7ed Recommend EOD alerts and add morning/midday modes",
+          "part": 1,
+          "parts_total": 1,
+          "source": "git"
+        },
+        {
+          "date": "2026-07-23",
+          "project": "hajiyanto-pci",
+          "workspace": "/workspace",
+          "start_time": "05:27",
+          "end_time": "06:27",
+          "hours": 1.0,
+          "description": "Project workspace `hajiyanto-pci`: continued hands-on engineering on the active codebase, covering implementation, validation, and remote synchronization for the workstream reflected by commits [ff0ccbed, b6fe7060, 3d958755, 841ae22b, a4e3bc70, +1 more]. Primary delivery focus included Add Telegram/WhatsApp alerts with accumulation checklist; Add --get-chat-id helper for Telegram setup; Clarify Telegram chat_id setup steps in docs; Allow manual --chat-id for Telegram setup; and 2 related follow-up changes. Activities in this block spanned requirements clarification with AI-assisted prompts, iterative coding against `origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804`, local verification of behavior, and preparing/pushing changes for review. Observed code churn in-scope for this segment: approximately +1369/-225 lines across the touched files. Commit timestamps (local Asia/Jakarta) clustered around 05:52–06:24 (segment 1/2 of a longer delivery block; each timesheet line capped at 2 hours for billing clarity). Documentation of intent was kept aligned with the commit messages to support traceability for weekly timesheet reporting and stakeholder status updates.",
+          "evidence": "ff0ccbed Add Telegram/WhatsApp alerts with accumulation checklist; b6fe7060 Add --get-chat-id helper for Telegram setup; 3d958755 Clarify Telegram chat_id setup steps in docs; 841ae22b Allow manual --chat-id for Telegram setup; a4e3bc70 Add --as-of kemarin for previous-session stock analysis; 5d1bf382 Add multi-factor formula and GitHub Actions online runs",
+          "part": 1,
+          "parts_total": 2,
+          "source": "git"
+        },
+        {
+          "date": "2026-07-23",
+          "project": "hajiyanto-pci",
+          "workspace": "/workspace",
+          "start_time": "06:27",
+          "end_time": "07:42",
+          "hours": 1.25,
+          "description": "Project workspace `hajiyanto-pci`: continued hands-on engineering on the active codebase, covering implementation, validation, and remote synchronization for the workstream reflected by commits [99b9928e, dce0ff67, 87e6897c, c4205e6c, 4263a097, +2 more]. Primary delivery focus included Add interactive Telegram bot commands for dated scans; Clarify GitHub Actions secret name format in docs; Support natural-language dates in Telegram bot chats; Add SL/TP suggestions and 09:10 plus session-break schedules; and 3 related follow-up changes. Activities in this block spanned requirements clarification with AI-assisted prompts, iterative coding against `origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804`, local verification of behavior, and preparing/pushing changes for review. Observed code churn in-scope for this segment: approximately +1957/-187 lines across the touched files. Commit timestamps (local Asia/Jakarta) clustered around 06:29–07:15 (segment 2/2 of a longer delivery block; each timesheet line capped at 2 hours for billing clarity). Documentation of intent was kept aligned with the commit messages to support traceability for weekly timesheet reporting and stakeholder status updates.",
+          "evidence": "99b9928e Add interactive Telegram bot commands for dated scans; dce0ff67 Clarify GitHub Actions secret name format in docs; 87e6897c Support natural-language dates in Telegram bot chats; c4205e6c Add SL/TP suggestions and 09:10 plus session-break schedules; 4263a097 Mention SL/TP and schedule times in bot help text; 23c574ae Add single-stock Telegram analysis with decision advice",
+          "part": 2,
+          "parts_total": 2,
+          "source": "git"
+        },
+        {
+          "date": "2026-07-23",
+          "project": "hajiyanto-pci",
+          "workspace": "calendar:primary",
+          "start_time": "10:00",
+          "end_time": "11:00",
+          "hours": 1.0,
+          "description": "Calendar meeting for project `hajiyanto-pci`: participated in \"Client sync: stock screener + Telegram alerts\" (10:00–11:00 Asia/Jakarta). Location/channel: Zoom. Attendees: hajiyanto@portcities.net, client@example.com. Agenda and discussion notes: Walk through volume breakout screening criteria, notification channels (Telegram/WhatsApp), SL/TP suggestions, and next iteration for natural-language chat intents. Outcomes from this block include alignment on priorities, clarification of requirements/blockers, and agreed next actions for delivery follow-up.",
+          "evidence": "gcal:meet-client-2026-07-23 | Client sync: stock screener + Telegram alerts | 2026-07-23T10:00:00+07:00 → 2026-07-23T11:00:00+07:00",
+          "part": 1,
+          "parts_total": 1,
+          "source": "calendar"
+        },
+        {
+          "date": "2026-07-24",
+          "project": "hajiyanto-pci",
+          "workspace": "calendar:primary",
+          "start_time": "13:00",
+          "end_time": "14:30",
+          "hours": 1.5,
+          "description": "Calendar meeting for project `hajiyanto-pci`: participated in \"Technical design: hajiyanto-pci NLU + IHSG outlook\" (13:00–16:00 Asia/Jakarta). Location/channel: Google Meet. Attendees: hajiyanto@portcities.net, eng@example.com, qa@example.com. Agenda and discussion notes: Deep-dive session on agent-style intent parsing before stock tools, Stochastic/bandarmology presets, messy-prompt tolerance, and Yahoo macro/news enrichment for IHSG questions. Outcomes from this block include alignment on priorities, clarification of requirements/blockers, and agreed next actions for delivery follow-up. This timesheet line is segment 1/2 of a longer meeting (each line capped at 2 hours).",
+          "evidence": "gcal:meet-deep-2026-07-24 | Technical design: hajiyanto-pci NLU + IHSG outlook | 2026-07-24T13:00:00+07:00 → 2026-07-24T16:00:00+07:00",
+          "part": 1,
+          "parts_total": 2,
+          "source": "calendar"
+        },
+        {
+          "date": "2026-07-24",
+          "project": "hajiyanto-pci",
+          "workspace": "calendar:primary",
+          "start_time": "14:30",
+          "end_time": "16:00",
+          "hours": 1.5,
+          "description": "Calendar meeting for project `hajiyanto-pci`: participated in \"Technical design: hajiyanto-pci NLU + IHSG outlook\" (13:00–16:00 Asia/Jakarta). Location/channel: Google Meet. Attendees: hajiyanto@portcities.net, eng@example.com, qa@example.com. Agenda and discussion notes: Deep-dive session on agent-style intent parsing before stock tools, Stochastic/bandarmology presets, messy-prompt tolerance, and Yahoo macro/news enrichment for IHSG questions. Outcomes from this block include alignment on priorities, clarification of requirements/blockers, and agreed next actions for delivery follow-up. This timesheet line is segment 2/2 of a longer meeting (each line capped at 2 hours).",
+          "evidence": "gcal:meet-deep-2026-07-24 | Technical design: hajiyanto-pci NLU + IHSG outlook | 2026-07-24T13:00:00+07:00 → 2026-07-24T16:00:00+07:00",
+          "part": 2,
+          "parts_total": 2,
+          "source": "calendar"
+        },
+        {
+          "date": "2026-07-24",
+          "project": "hajiyanto-pci",
+          "workspace": "/workspace",
+          "start_time": "16:00",
+          "end_time": "16:15",
+          "hours": 0.25,
+          "description": "Project workspace `hajiyanto-pci`: continued hands-on engineering on the active codebase, covering implementation, validation, and remote synchronization for the workstream reflected by commits [878ec79f]. Primary delivery focus included Fix hari-ini chat misread as ticker and harden bot polling. Activities in this block spanned requirements clarification with AI-assisted prompts, iterative coding against `origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804`, local verification of behavior, and preparing/pushing changes for review. Observed code churn in-scope for this segment: approximately +65/-26 lines across the touched files. Commit timestamps (local Asia/Jakarta) clustered around 14:24–14:24. Documentation of intent was kept aligned with the commit messages to support traceability for weekly timesheet reporting and stakeholder status updates.",
+          "evidence": "878ec79f Fix hari-ini chat misread as ticker and harden bot polling",
+          "part": 1,
+          "parts_total": 1,
+          "source": "git"
+        },
+        {
+          "date": "2026-07-26",
+          "project": "hajiyanto-pci",
+          "workspace": "/workspace",
+          "start_time": "07:42",
+          "end_time": "08:27",
+          "hours": 0.75,
+          "description": "Project workspace `hajiyanto-pci`: continued hands-on engineering on the active codebase, covering implementation, validation, and remote synchronization for the workstream reflected by commits [346956e6, 6c2801c9]. Primary delivery focus included Add weekly activity agent for prompts, commits, and pushes; Add multi-project weekly timesheet agent (max 2h/line). Activities in this block spanned requirements clarification with AI-assisted prompts, iterative coding against `origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804`, local verification of behavior, and preparing/pushing changes for review. Observed code churn in-scope for this segment: approximately +1879/-68 lines across the touched files. Commit timestamps (local Asia/Jakarta) clustered around 08:07–08:11. Documentation of intent was kept aligned with the commit messages to support traceability for weekly timesheet reporting and stakeholder status updates.",
+          "evidence": "346956e6 Add weekly activity agent for prompts, commits, and pushes; 6c2801c9 Add multi-project weekly timesheet agent (max 2h/line)",
+          "part": 1,
+          "parts_total": 1,
+          "source": "git"
+        }
+      ],
+      "notes": [
+        "Remote tips updated (push activity): origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804",
+        "Git session estimates reduced where they overlapped Google Calendar meetings."
+      ]
+    },
+    {
+      "project": "Internal / Meetings",
+      "repo_path": "calendar:primary",
+      "remote": "",
+      "commit_count": 0,
+      "meeting_count": 1,
+      "lines": [
+        {
+          "date": "2026-07-25",
+          "project": "Internal / Meetings",
+          "workspace": "calendar:primary",
+          "start_time": "15:00",
+          "end_time": "15:45",
+          "hours": 0.75,
+          "description": "Calendar meeting for project `Internal / Meetings`: participated in \"1:1 weekly coaching\" (15:00–15:45 Asia/Jakarta). Location/channel: Offline. Attendees: hajiyanto@portcities.net, manager@example.com. Agenda and discussion notes: Career and delivery coaching: workload balance, timesheet discipline, and prioritization across active workspaces under /home/haji/git. Outcomes from this block include alignment on priorities, clarification of requirements/blockers, and agreed next actions for delivery follow-up.",
+          "evidence": "gcal:meet-1on1-2026-07-25 | 1:1 weekly coaching | 2026-07-25T15:00:00+07:00 → 2026-07-25T15:45:00+07:00",
+          "part": 1,
+          "parts_total": 1,
+          "source": "calendar"
+        }
+      ],
+      "notes": [
+        "Project created from Google Calendar meetings only."
+      ]
+    }
+  ],
+  "notes": [
+    "Path target user `/home/haji/git` (Ubuntu-22.04\\\\home\\\\haji\\\\git) tidak tersedia di environment ini; memakai `/workspace`.",
+    "Calendar source: JSON export (fixtures/sample-calendar-week.json)"
+  ]
+}
