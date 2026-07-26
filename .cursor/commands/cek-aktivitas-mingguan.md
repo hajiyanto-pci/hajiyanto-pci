@@ -1,50 +1,26 @@
 # Cek aktivitas mingguan
 
-Kamu adalah **Weekly Activity Auditor** untuk repo ini.
+Kamu adalah **Weekly Activity Auditor**. Untuk **timesheet profesional (max 2 jam/line)**, utamakan command `buat-timesheet-mingguan`.
 
 ## Tujuan
-Buat laporan ringkas aktivitas **7 hari terakhir** (UTC), mencakup:
-1. Cloud agent runs (prompt user, status, source, model, PR/diff)
-2. Commit & push (dari `.git` / remote-tracking branches)
-3. Pull request aktif
-4. Ringkasan tema kerja
+Buat laporan ringkas aktivitas **7 hari terakhir**, lalu tawarkan/hasilkan timesheet.
 
-## Langkah wajib
-1. Deteksi git root: cek `/git`, lalu `/workspace`, lalu `git rev-parse --show-toplevel`. Catat path yang dipakai (banyak cloud env memakai `/workspace` meski user menyebut `/git`).
-2. Jalankan collector lokal:
+Source git home:
+- `/home/haji/git` (Ubuntu-22.04\\home\\haji\\git)
+- fallback: `/git`, `/workspace`, atau root yang ditemukan script
+
+## Langkah
+1. Activity raw:
    ```bash
    python3 scripts/weekly_activity_report.py --days 7 -o reports/weekly-activity-latest.md
-   python3 scripts/weekly_activity_report.py --days 7 --format json -o reports/weekly-activity-latest.json
    ```
-3. Pakai MCP `cursor-cloud`:
-   - `list-cloud-agents` dengan `created_after` = 7 hari lalu (ISO-8601 UTC), `include_archived=true`, page sampai `hasMore=false`.
-   - Untuk agen yang relevan (punya branch/PR/code changes, atau nama non-trivial), panggil `batch-fetch-details` dengan `include_diff_metadata=true`.
-   - Jika perlu ringkas prompt user: `include_transcripts=true`, lalu **baca transcript lewat subagent** (jangan load penuh di context utama).
-4. Jangan buat commit/PR kecuali user meminta menyimpan laporan ke repo.
-
-## Format output (Bahasa Indonesia)
-```markdown
-# Laporan Aktivitas — {start} → {end}
-
-## Ringkasan eksekutif
-- X cloud agent, Y commit, Z PR aktif
-- Tema utama: ...
-
-## Cloud agents & prompt
-Untuk tiap agen: nama, source, model, status, URL, jumlah prompt user (paraphrase), apakah ada code change/PR.
-
-## Git: commit & push
-- Tabel/daftar commit (sha, waktu, subject)
-- Remote branch tips yang bergerak (= indikasi push)
-
-## Pull requests
-- nomor, judul, state, +/- lines, URL
-
-## Catatan / follow-up
-- hal yang masih draft, belum merge, atau perlu tindakan user
-```
+2. Timesheet (per project, max 2h/line):
+   ```bash
+   python3 scripts/weekly_timesheet.py --git-home /home/haji/git --days 7 --timezone Asia/Jakarta --max-line-hours 2 -o reports/timesheet-latest.md --csv reports/timesheet-latest.csv
+   ```
+3. MCP `cursor-cloud`: list agents 7 hari + detail/diff; ringkas prompt user via subagent bila perlu.
+4. Output Indonesia untuk ringkasan; deskripsi timesheet profesional & panjang; **tidak ada line > 2 jam**.
 
 ## Aturan
-- Jangan bocorkan token/secret dari remote URL atau env.
-- Prompt user: paraphrase singkat, jangan paste secret (token bot, API key).
-- Jika `/git` tidak ada, jelaskan sekali saja dan lanjut dengan root yang ditemukan.
+- Jangan bocorkan secret/token.
+- Jika `/home/haji/git` tidak ada, sebutkan sekali dan lanjut dengan fallback.

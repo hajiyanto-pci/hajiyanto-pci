@@ -1,0 +1,97 @@
+{
+  "generated_at": "2026-07-26T01:11:48.773981Z",
+  "since": "2026-07-19T01:11:48.773981Z",
+  "until": "2026-07-26T01:11:48.773981Z",
+  "timezone": "Asia/Jakarta",
+  "git_home": "/workspace",
+  "max_line_hours": 2.0,
+  "total_hours": 6.25,
+  "projects": [
+    {
+      "project": "hajiyanto-pci",
+      "repo_path": "/workspace",
+      "remote": "https://***@github.com/hajiyanto-pci/hajiyanto-pci",
+      "commit_count": 23,
+      "lines": [
+        {
+          "date": "2026-07-23",
+          "project": "hajiyanto-pci",
+          "workspace": "/workspace",
+          "start_time": "03:26",
+          "end_time": "04:26",
+          "hours": 1.0,
+          "description": "Project workspace `hajiyanto-pci`: continued hands-on engineering on the active codebase, covering implementation, validation, and remote synchronization for the workstream reflected by commits [66ade088, 2b37b7ed]. Primary delivery focus included Add IDX stock screener with volume breakout alerts; Recommend EOD alerts and add morning/midday modes. Activities in this block spanned requirements clarification with AI-assisted prompts, iterative coding against `origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804`, local verification of behavior, and preparing/pushing changes for review. Observed code churn in-scope for this segment: approximately +1275/-62 lines across the touched files. Commit timestamps (local Asia/Jakarta) clustered around 03:51–04:04. Documentation of intent was kept aligned with the commit messages to support traceability for weekly timesheet reporting and stakeholder status updates.",
+          "evidence": "66ade088 Add IDX stock screener with volume breakout alerts; 2b37b7ed Recommend EOD alerts and add morning/midday modes",
+          "part": 1,
+          "parts_total": 1
+        },
+        {
+          "date": "2026-07-23",
+          "project": "hajiyanto-pci",
+          "workspace": "/workspace",
+          "start_time": "05:27",
+          "end_time": "06:27",
+          "hours": 1.0,
+          "description": "Project workspace `hajiyanto-pci`: continued hands-on engineering on the active codebase, covering implementation, validation, and remote synchronization for the workstream reflected by commits [ff0ccbed, b6fe7060, 3d958755, 841ae22b, a4e3bc70, +1 more]. Primary delivery focus included Add Telegram/WhatsApp alerts with accumulation checklist; Add --get-chat-id helper for Telegram setup; Clarify Telegram chat_id setup steps in docs; Allow manual --chat-id for Telegram setup; and 2 related follow-up changes. Activities in this block spanned requirements clarification with AI-assisted prompts, iterative coding against `origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804`, local verification of behavior, and preparing/pushing changes for review. Observed code churn in-scope for this segment: approximately +1369/-225 lines across the touched files. Commit timestamps (local Asia/Jakarta) clustered around 05:52–06:24 (segment 1/2 of a longer delivery block; each timesheet line capped at 2 hours for billing clarity). Documentation of intent was kept aligned with the commit messages to support traceability for weekly timesheet reporting and stakeholder status updates.",
+          "evidence": "ff0ccbed Add Telegram/WhatsApp alerts with accumulation checklist; b6fe7060 Add --get-chat-id helper for Telegram setup; 3d958755 Clarify Telegram chat_id setup steps in docs; 841ae22b Allow manual --chat-id for Telegram setup; a4e3bc70 Add --as-of kemarin for previous-session stock analysis; 5d1bf382 Add multi-factor formula and GitHub Actions online runs",
+          "part": 1,
+          "parts_total": 2
+        },
+        {
+          "date": "2026-07-23",
+          "project": "hajiyanto-pci",
+          "workspace": "/workspace",
+          "start_time": "06:27",
+          "end_time": "07:42",
+          "hours": 1.25,
+          "description": "Project workspace `hajiyanto-pci`: continued hands-on engineering on the active codebase, covering implementation, validation, and remote synchronization for the workstream reflected by commits [99b9928e, dce0ff67, 87e6897c, c4205e6c, 4263a097, +2 more]. Primary delivery focus included Add interactive Telegram bot commands for dated scans; Clarify GitHub Actions secret name format in docs; Support natural-language dates in Telegram bot chats; Add SL/TP suggestions and 09:10 plus session-break schedules; and 3 related follow-up changes. Activities in this block spanned requirements clarification with AI-assisted prompts, iterative coding against `origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804`, local verification of behavior, and preparing/pushing changes for review. Observed code churn in-scope for this segment: approximately +1957/-187 lines across the touched files. Commit timestamps (local Asia/Jakarta) clustered around 06:29–07:15 (segment 2/2 of a longer delivery block; each timesheet line capped at 2 hours for billing clarity). Documentation of intent was kept aligned with the commit messages to support traceability for weekly timesheet reporting and stakeholder status updates.",
+          "evidence": "99b9928e Add interactive Telegram bot commands for dated scans; dce0ff67 Clarify GitHub Actions secret name format in docs; 87e6897c Support natural-language dates in Telegram bot chats; c4205e6c Add SL/TP suggestions and 09:10 plus session-break schedules; 4263a097 Mention SL/TP and schedule times in bot help text; 23c574ae Add single-stock Telegram analysis with decision advice",
+          "part": 2,
+          "parts_total": 2
+        },
+        {
+          "date": "2026-07-24",
+          "project": "hajiyanto-pci",
+          "workspace": "/workspace",
+          "start_time": "13:59",
+          "end_time": "14:59",
+          "hours": 1.0,
+          "description": "Project workspace `hajiyanto-pci`: continued hands-on engineering on the active codebase, covering implementation, validation, and remote synchronization for the workstream reflected by commits [878ec79f, 3fa4ebcd, 274595d7, da403351]. Primary delivery focus included Fix hari-ini chat misread as ticker and harden bot polling; Improve natural-language intent for screening chats; Add IHSG outlook from Yahoo tech, macro, and news; Add agent-style request understanding before stock tools. Activities in this block spanned requirements clarification with AI-assisted prompts, iterative coding against `origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804`, local verification of behavior, and preparing/pushing changes for review. Observed code churn in-scope for this segment: approximately +1501/-210 lines across the touched files. Commit timestamps (local Asia/Jakarta) clustered around 14:24–14:56 (segment 1/2 of a longer delivery block; each timesheet line capped at 2 hours for billing clarity). Documentation of intent was kept aligned with the commit messages to support traceability for weekly timesheet reporting and stakeholder status updates.",
+          "evidence": "878ec79f Fix hari-ini chat misread as ticker and harden bot polling; 3fa4ebcd Improve natural-language intent for screening chats; 274595d7 Add IHSG outlook from Yahoo tech, macro, and news; da403351 Add agent-style request understanding before stock tools",
+          "part": 1,
+          "parts_total": 2
+        },
+        {
+          "date": "2026-07-24",
+          "project": "hajiyanto-pci",
+          "workspace": "/workspace",
+          "start_time": "14:59",
+          "end_time": "16:14",
+          "hours": 1.25,
+          "description": "Project workspace `hajiyanto-pci`: continued hands-on engineering on the active codebase, covering implementation, validation, and remote synchronization for the workstream reflected by commits [a77d6ab3, 8be3d0f4, fa8c38ee]. Primary delivery focus included Add Stochastic oversold screening via natural chat; Expand technical screen presets and messy-prompt NLU; Recognize stochastoc typo for stochastic. Activities in this block spanned requirements clarification with AI-assisted prompts, iterative coding against `origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804`, local verification of behavior, and preparing/pushing changes for review. Observed code churn in-scope for this segment: approximately +1519/-135 lines across the touched files. Commit timestamps (local Asia/Jakarta) clustered around 15:42–15:55 (segment 2/2 of a longer delivery block; each timesheet line capped at 2 hours for billing clarity). Documentation of intent was kept aligned with the commit messages to support traceability for weekly timesheet reporting and stakeholder status updates.",
+          "evidence": "a77d6ab3 Add Stochastic oversold screening via natural chat; 8be3d0f4 Expand technical screen presets and messy-prompt NLU; fa8c38ee Recognize stochastoc typo for stochastic",
+          "part": 2,
+          "parts_total": 2
+        },
+        {
+          "date": "2026-07-26",
+          "project": "hajiyanto-pci",
+          "workspace": "/workspace",
+          "start_time": "07:42",
+          "end_time": "08:27",
+          "hours": 0.75,
+          "description": "Project workspace `hajiyanto-pci`: continued hands-on engineering on the active codebase, covering implementation, validation, and remote synchronization for the workstream reflected by commits [346956e6]. Primary delivery focus included Add weekly activity agent for prompts, commits, and pushes. Activities in this block spanned requirements clarification with AI-assisted prompts, iterative coding against `origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804`, local verification of behavior, and preparing/pushing changes for review. Observed code churn in-scope for this segment: approximately +770/-0 lines across the touched files. Commit timestamps (local Asia/Jakarta) clustered around 08:07–08:07. Documentation of intent was kept aligned with the commit messages to support traceability for weekly timesheet reporting and stakeholder status updates.",
+          "evidence": "346956e6 Add weekly activity agent for prompts, commits, and pushes",
+          "part": 1,
+          "parts_total": 1
+        }
+      ],
+      "notes": [
+        "Remote tips updated (push activity): origin/cursor/stock-screener-alerts-8093, origin/cursor/weekly-activity-agent-b804"
+      ]
+    }
+  ],
+  "notes": [
+    "Path target user `/home/haji/git` (Ubuntu-22.04\\\\home\\\\haji\\\\git) tidak tersedia di environment ini; memakai `/workspace`."
+  ]
+}
