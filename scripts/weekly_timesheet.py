@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Weekly professional timesheet from multi-repo git activity.
+"""Weekly professional timesheet from git activity + Google Calendar.
 
 Scans a git home directory (default: /home/haji/git — Ubuntu-22.04/WSL),
-groups work by project/workspace, estimates sessions from commits/pushes,
+optionally merges Google Calendar meetings, groups work by project/workspace,
 and emits timesheet lines with a hard maximum of 2.0 hours per line.
-Longer sessions are broken down into multiple detailed entries.
+Longer sessions/meetings are broken down into multiple detailed entries.
 """
 
 from __future__ import annotations
@@ -21,6 +21,12 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from google_calendar import CalendarEvent, fetch_calendar_events  # noqa: E402
 
 
 # User's WSL/Ubuntu git workspace + cloud fallbacks
@@ -70,6 +76,7 @@ class TimesheetLine:
     evidence: str
     part: int
     parts_total: int
+    source: str = "git"  # git | calendar
 
 
 @dataclass
@@ -78,6 +85,7 @@ class ProjectBundle:
     repo_path: str
     remote: str
     commit_count: int
+    meeting_count: int = 0
     lines: list[TimesheetLine] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
@@ -91,6 +99,8 @@ class TimesheetReport:
     git_home: str
     max_line_hours: float
     total_hours: float
+    calendar_enabled: bool = False
+    calendar_event_count: int = 0
     projects: list[ProjectBundle] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
@@ -412,6 +422,77 @@ def allocate_hour_chunks(total_hours: float, max_line_hours: float) -> list[floa
     return [h for h in fixed if h > 0]
 
 
+def overlap_seconds(a_start: datetime, a_end: datetime, b_start: datetime, b_end: datetime) -> float:
+    start = max(a_start, b_start)
+    end = min(a_end, b_end)
+    if end <= start:
+        return 0.0
+    return (end - start).total_seconds()
+
+
+def subtract_meetings_from_session(
+    session: WorkSession,
+    meetings: list[CalendarEvent],
+) -> list[WorkSession]:
+    """Remove calendar-occupied ranges from git-estimated sessions for accuracy."""
+    relevant = [
+        m
+        for m in meetings
+        if m.end > session.start and m.start < session.end
+    ]
+    if not relevant:
+        return [session]
+
+    points = sorted(
+        {session.start, session.end, *[m.start for m in relevant], *[m.end for m in relevant]}
+    )
+    free_ranges: list[tuple[datetime, datetime]] = []
+    for i in range(len(points) - 1):
+        a, b = points[i], points[i + 1]
+        if b <= a:
+            continue
+        if a < session.start or b > session.end:
+            continue
+        covered = any(overlap_seconds(a, b, m.start, m.end) > 0 for m in relevant)
+        if not covered:
+            free_ranges.append((a, b))
+
+    # Merge contiguous free ranges
+    merged: list[tuple[datetime, datetime]] = []
+    for a, b in free_ranges:
+        if not merged or a > merged[-1][1]:
+            merged.append((a, b))
+        else:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+
+    result: list[WorkSession] = []
+    for a, b in merged:
+        if (b - a) < timedelta(minutes=15):
+            continue
+        commits = [c for c in session.commits if a <= c.dt <= b]
+        if not commits:
+            # keep a slice only if original session had nearby commits
+            commits = [
+                c
+                for c in session.commits
+                if abs((c.dt - a).total_seconds()) < 3 * 3600
+                or abs((c.dt - b).total_seconds()) < 3 * 3600
+            ][:1]
+        if not commits:
+            continue
+        result.append(
+            WorkSession(
+                project=session.project,
+                repo_path=session.repo_path,
+                start=a,
+                end=b,
+                commits=commits or session.commits[:1],
+                branches=session.branches,
+            )
+        )
+    return result or [session]
+
+
 def split_session_to_lines(
     session: WorkSession,
     tz: ZoneInfo,
@@ -457,6 +538,87 @@ def split_session_to_lines(
                 evidence=evidence,
                 part=part_i,
                 parts_total=parts_total,
+                source="git",
+            )
+        )
+        cursor = end
+    return lines
+
+
+def meeting_description(
+    event: CalendarEvent,
+    part: int,
+    parts_total: int,
+    tz: ZoneInfo,
+) -> str:
+    attendees = ", ".join(event.attendees[:8]) if event.attendees else "internal participants"
+    if event.attendees and len(event.attendees) > 8:
+        attendees += f", +{len(event.attendees) - 8} more"
+    agenda = re.sub(r"<[^>]+>", " ", event.description or "")
+    agenda = re.sub(r"\s+", " ", agenda).strip()
+    if len(agenda) > 420:
+        agenda = agenda[:417] + "..."
+    if not agenda:
+        agenda = (
+            "Working session / meeting aligned to the scheduled calendar agenda, "
+            "including discussion of progress, decisions, and follow-up actions."
+        )
+    location = event.location or event.hangout_link or "online/offline per invite"
+    local_start = event.start.astimezone(tz).strftime("%H:%M")
+    local_end = event.end.astimezone(tz).strftime("%H:%M")
+    part_note = (
+        f" This timesheet line is segment {part}/{parts_total} of a longer meeting "
+        f"(each line capped at {MAX_LINE_HOURS:g} hours)."
+        if parts_total > 1
+        else ""
+    )
+    return (
+        f"Calendar meeting for project `{event.project}`: participated in "
+        f"\"{event.summary}\" ({local_start}–{local_end} {tz.key}). "
+        f"Location/channel: {location}. Attendees: {attendees}. "
+        f"Agenda and discussion notes: {agenda} "
+        f"Outcomes from this block include alignment on priorities, clarification of "
+        f"requirements/blockers, and agreed next actions for delivery follow-up."
+        f"{part_note}"
+    )
+
+
+def calendar_event_to_lines(
+    event: CalendarEvent,
+    tz: ZoneInfo,
+    max_line_hours: float,
+) -> list[TimesheetLine]:
+    total_hours = round_hours((event.end - event.start).total_seconds() / 3600.0)
+    chunk_hours = allocate_hour_chunks(total_hours, max_line_hours)
+    parts_total = len(chunk_hours)
+    lines: list[TimesheetLine] = []
+    cursor = event.start
+    for part_i, hours in enumerate(chunk_hours, start=1):
+        end = min(event.end, cursor + timedelta(hours=hours))
+        # Keep wall-clock aligned to real meeting where possible for first/last parts
+        if part_i == parts_total:
+            end = event.end
+            hours = round_hours((end - cursor).total_seconds() / 3600.0)
+            hours = min(hours, max_line_hours)
+        local_start = cursor.astimezone(tz)
+        local_end = end.astimezone(tz)
+        evidence = (
+            f"gcal:{event.event_id} | {event.summary} | "
+            f"{event.start.isoformat()} → {event.end.isoformat()}"
+        )
+        lines.append(
+            TimesheetLine(
+                date=local_start.strftime("%Y-%m-%d"),
+                project=event.project,
+                workspace=f"calendar:{event.calendar_id}",
+                start_time=local_start.strftime("%H:%M"),
+                end_time=local_end.strftime("%H:%M"),
+                hours=float(f"{hours:.2f}"),
+                description=meeting_description(event, part_i, parts_total, tz),
+                evidence=evidence,
+                part=part_i,
+                parts_total=parts_total,
+                source="calendar",
             )
         )
         cursor = end
@@ -499,6 +661,7 @@ def build_project_bundle(
     until: str,
     tz: ZoneInfo,
     max_line_hours: float,
+    meetings: list[CalendarEvent] | None = None,
 ) -> ProjectBundle | None:
     commits = collect_commits(repo, since, until)
     if not commits:
@@ -512,20 +675,60 @@ def build_project_bundle(
 
     lines: list[TimesheetLine] = []
     for session in sessions:
-        lines.extend(split_session_to_lines(session, tz, max_line_hours=max_line_hours))
+        adjusted = (
+            subtract_meetings_from_session(session, meetings or [])
+            if meetings
+            else [session]
+        )
+        for piece in adjusted:
+            lines.extend(split_session_to_lines(piece, tz, max_line_hours=max_line_hours))
 
     notes: list[str] = []
     if branches:
         notes.append("Remote tips updated (push activity): " + ", ".join(branches))
+    if meetings:
+        notes.append(
+            "Git session estimates reduced where they overlapped Google Calendar meetings."
+        )
 
     return ProjectBundle(
         project=name,
         repo_path=str(repo),
         remote=remote,
         commit_count=len(commits),
+        meeting_count=0,
         lines=lines,
         notes=notes,
     )
+
+
+def merge_meeting_lines(
+    projects: list[ProjectBundle],
+    meeting_lines: list[TimesheetLine],
+) -> list[ProjectBundle]:
+    by_name = {p.project.lower(): p for p in projects}
+    for line in meeting_lines:
+        key = line.project.lower()
+        if key not in by_name:
+            bundle = ProjectBundle(
+                project=line.project,
+                repo_path=line.workspace,
+                remote="",
+                commit_count=0,
+                meeting_count=0,
+                lines=[],
+                notes=["Project created from Google Calendar meetings only."],
+            )
+            projects.append(bundle)
+            by_name[key] = bundle
+        bundle = by_name[key]
+        bundle.lines.append(line)
+        bundle.meeting_count += 1 if line.part == 1 else 0
+
+    for bundle in projects:
+        bundle.lines.sort(key=lambda l: (l.date, l.start_time, l.source, l.part))
+    projects.sort(key=lambda p: p.project.lower())
+    return projects
 
 
 def build_timesheet(
@@ -533,6 +736,13 @@ def build_timesheet(
     git_home_arg: str | None,
     tz_name: str,
     max_line_hours: float,
+    *,
+    calendar: bool = False,
+    calendar_map: str | None = None,
+    calendar_json: str | None = None,
+    calendar_ics: str | None = None,
+    credentials: str | None = None,
+    token: str | None = None,
 ) -> TimesheetReport:
     git_home, notes = resolve_git_home(git_home_arg)
     tz = ZoneInfo(tz_name)
@@ -553,15 +763,48 @@ def build_timesheet(
             f"tidak tersedia di environment ini; memakai `{git_home}`."
         )
 
+    meetings: list[CalendarEvent] = []
+    calendar_enabled = False
+    if calendar or calendar_json or calendar_ics:
+        calendar_enabled = True
+        try:
+            meetings, cal_notes = fetch_calendar_events(
+                since_dt,
+                now,
+                tz_name=tz_name,
+                map_path=Path(calendar_map) if calendar_map else None,
+                credentials_path=Path(credentials) if credentials else None,
+                token_path=Path(token) if token else None,
+                calendar_json=Path(calendar_json) if calendar_json else None,
+                calendar_ics=Path(calendar_ics) if calendar_ics else None,
+            )
+            notes.extend(cal_notes)
+        except SystemExit as exc:
+            notes.append(f"Google Calendar unavailable: {exc}")
+            meetings = []
+        except Exception as exc:  # noqa: BLE001 - keep timesheet usable offline
+            notes.append(f"Google Calendar error: {exc}")
+            meetings = []
+
     projects: list[ProjectBundle] = []
     for repo in repos:
         bundle = build_project_bundle(
-            repo, git_home, since, until, tz, max_line_hours=max_line_hours
+            repo,
+            git_home,
+            since,
+            until,
+            tz,
+            max_line_hours=max_line_hours,
+            meetings=meetings,
         )
         if bundle:
             projects.append(bundle)
 
-    projects.sort(key=lambda p: p.project.lower())
+    meeting_lines: list[TimesheetLine] = []
+    for event in meetings:
+        meeting_lines.extend(calendar_event_to_lines(event, tz, max_line_hours))
+    projects = merge_meeting_lines(projects, meeting_lines)
+
     total = round(sum(line.hours for p in projects for line in p.lines), 2)
 
     # Validate max line constraint
@@ -580,6 +823,8 @@ def build_timesheet(
         git_home=str(git_home),
         max_line_hours=max_line_hours,
         total_hours=total,
+        calendar_enabled=calendar_enabled,
+        calendar_event_count=len(meetings),
         projects=projects,
         notes=notes,
     )
@@ -592,6 +837,8 @@ def render_markdown(report: TimesheetReport) -> str:
         f"- Period (UTC): `{report.since}` → `{report.until}`",
         f"- Display timezone: `{report.timezone}`",
         f"- Git home / workspace root: `{report.git_home}`",
+        f"- Google Calendar: "
+        f"{'enabled (' + str(report.calendar_event_count) + ' events)' if report.calendar_enabled else 'disabled'}",
         f"- Max hours per timesheet line: **{report.max_line_hours:g}h** "
         "(longer blocks are split)",
         f"- Total hours: **{report.total_hours:g}**",
@@ -603,16 +850,19 @@ def render_markdown(report: TimesheetReport) -> str:
     if not report.projects:
         lines.append("_No project activity found in this period._")
     else:
-        lines.append("| Project | Commits | Hours | Lines |")
-        lines.append("|---|---:|---:|---:|")
+        lines.append("| Project | Commits | Meetings | Hours | Lines |")
+        lines.append("|---|---:|---:|---:|---:|")
         for p in report.projects:
             hours = round(sum(l.hours for l in p.lines), 2)
             lines.append(
-                f"| `{p.project}` | {p.commit_count} | {hours:g} | {len(p.lines)} |"
+                f"| `{p.project}` | {p.commit_count} | {p.meeting_count} | "
+                f"{hours:g} | {len(p.lines)} |"
             )
 
     for p in report.projects:
         proj_hours = round(sum(l.hours for l in p.lines), 2)
+        git_hours = round(sum(l.hours for l in p.lines if l.source == "git"), 2)
+        cal_hours = round(sum(l.hours for l in p.lines if l.source == "calendar"), 2)
         lines.extend(
             [
                 "",
@@ -621,19 +871,21 @@ def render_markdown(report: TimesheetReport) -> str:
                 f"- Workspace: `{p.repo_path}`",
                 f"- Remote: `{p.remote or '(none)'}`",
                 f"- Commits in period: **{p.commit_count}**",
-                f"- Billable hours (sum of lines): **{proj_hours:g}**",
+                f"- Meetings in period: **{p.meeting_count}**",
+                f"- Hours breakdown: git **{git_hours:g}h** + calendar **{cal_hours:g}h** "
+                f"= **{proj_hours:g}h**",
                 "",
-                "| Date | Start | End | Hours | Description |",
-                "|---|---|---|---:|---|",
+                "| Date | Start | End | Hours | Source | Description |",
+                "|---|---|---|---:|---|---|",
             ]
         )
         for line in p.lines:
             desc = line.description.replace("|", "\\|").replace("\n", " ")
             lines.append(
                 f"| {line.date} | {line.start_time} | {line.end_time} | "
-                f"{line.hours:g} | {desc} |"
+                f"{line.hours:g} | `{line.source}` | {desc} |"
             )
-        lines.extend(["", "### Evidence (commits)", ""])
+        lines.extend(["", "### Evidence", ""])
         for line in p.lines:
             label = (
                 f"Part {line.part}/{line.parts_total}"
@@ -641,8 +893,8 @@ def render_markdown(report: TimesheetReport) -> str:
                 else "Entry"
             )
             lines.append(
-                f"- **{line.date} {line.start_time}–{line.end_time}** ({label}, "
-                f"{line.hours:g}h): {line.evidence}"
+                f"- **{line.date} {line.start_time}–{line.end_time}** "
+                f"(`{line.source}`, {label}, {line.hours:g}h): {line.evidence}"
             )
         if p.notes:
             lines.extend(["", "### Notes", ""])
@@ -670,6 +922,7 @@ def write_csv(report: TimesheetReport, path: Path) -> None:
                 "start_time",
                 "end_time",
                 "hours",
+                "source",
                 "description",
                 "evidence",
                 "part",
@@ -679,7 +932,8 @@ def write_csv(report: TimesheetReport, path: Path) -> None:
         writer.writeheader()
         for project in report.projects:
             for line in project.lines:
-                writer.writerow(asdict(line))
+                row = asdict(line)
+                writer.writerow(row)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -700,6 +954,34 @@ def main(argv: list[str] | None = None) -> int:
         type=float,
         default=MAX_LINE_HOURS,
         help="Maximum hours per timesheet line (default: 2.0)",
+    )
+    parser.add_argument(
+        "--calendar",
+        action="store_true",
+        help="Merge Google Calendar meetings (OAuth via secrets/credentials.json)",
+    )
+    parser.add_argument(
+        "--calendar-map",
+        default=os.environ.get("CALENDAR_PROJECT_MAP"),
+        help="Path to calendar→project mapping JSON",
+    )
+    parser.add_argument(
+        "--calendar-json",
+        help="Use exported calendar events JSON instead of live API",
+    )
+    parser.add_argument(
+        "--calendar-ics",
+        help="Use exported .ics calendar file instead of live API",
+    )
+    parser.add_argument(
+        "--credentials",
+        default=os.environ.get("GOOGLE_CREDENTIALS", "secrets/credentials.json"),
+        help="OAuth client secrets JSON path",
+    )
+    parser.add_argument(
+        "--token",
+        default=os.environ.get("GOOGLE_TOKEN", "secrets/token.json"),
+        help="OAuth token JSON path",
     )
     parser.add_argument(
         "--format",
@@ -724,6 +1006,12 @@ def main(argv: list[str] | None = None) -> int:
         git_home_arg=args.git_home,
         tz_name=args.timezone,
         max_line_hours=args.max_line_hours,
+        calendar=args.calendar,
+        calendar_map=args.calendar_map,
+        calendar_json=args.calendar_json,
+        calendar_ics=args.calendar_ics,
+        credentials=args.credentials,
+        token=args.token,
     )
 
     if args.format == "json":

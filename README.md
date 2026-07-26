@@ -1,40 +1,51 @@
 # hajiyanto-pci
 
-## Weekly Timesheet / Activity Agent
+## Weekly Timesheet Agent (+ Google Calendar)
 
-Agent AI untuk cek aktivitas seminggu (prompt, commit, push, PR) dan membuat **timesheet profesional**.
+Cek aktivitas seminggu (prompt, commit, push, PR, **meeting Google Calendar**) lalu buat timesheet profesional.
 
 ### Path workspace git
 - Linux/WSL: `/home/haji/git`
-- Notasi Windows: `Ubuntu-22.04\home\haji\git`
+- Windows: `Ubuntu-22.04\home\haji\git`
 
-Tiap repo di bawah folder itu = satu project pada timesheet.
+### Aturan timesheet
+- Kelompok per project/workspace
+- Deskripsi detail & agak panjang
+- **Max 2 jam / line** (otomatis di-breakdown)
+- Meeting calendar masuk sebagai baris `source=calendar`
+- Estimasi coding git dikurangi jika overlap meeting
 
-### Fitur timesheet
-- Dikelompokkan per project/workspace
-- Deskripsi detail & agak panjang (profesional)
-- **Maksimum 2 jam per line** — sesi lebih panjang di-breakdown otomatis
-
-| File | Fungsi |
-|---|---|
-| `.cursor/commands/buat-timesheet-mingguan.md` | Command utama: buat timesheet |
-| `.cursor/commands/cek-aktivitas-mingguan.md` | Cek aktivitas (+ arahkan ke timesheet) |
-| `.cursor/automations/weekly-activity-prompt.md` | Prompt Automations jadwal mingguan |
-| `scripts/weekly_timesheet.py` | Generator timesheet multi-repo |
-| `scripts/weekly_activity_report.py` | Collector aktivitas single-repo |
-| `reports/` | Output laporan & timesheet |
-
-### Pakai cepat
+### Google Calendar setup (sekali)
+Lihat `secrets/README.md`, lalu:
 
 ```bash
-# Di mesin Ubuntu/WSL kamu:
+pip install -r requirements-timesheet.txt
+# simpan OAuth Desktop client sebagai secrets/credentials.json
+python3 scripts/google_calendar_auth.py
+cp config/calendar-project-map.example.json config/calendar-project-map.json
+```
+
+### Generate timesheet
+
+```bash
 python3 scripts/weekly_timesheet.py \
   --git-home /home/haji/git \
   --days 7 \
   --timezone Asia/Jakarta \
   --max-line-hours 2 \
+  --calendar \
+  --calendar-map config/calendar-project-map.json \
   -o reports/timesheet-latest.md \
   --csv reports/timesheet-latest.csv
 ```
 
-Di Cursor: jalankan command **buat-timesheet-mingguan**.
+Di Cursor: command **`buat-timesheet-mingguan`**.
+
+| File | Fungsi |
+|---|---|
+| `.cursor/commands/buat-timesheet-mingguan.md` | Command utama |
+| `scripts/weekly_timesheet.py` | Generator timesheet |
+| `scripts/google_calendar.py` | Fetch Google Calendar / JSON / ICS |
+| `scripts/google_calendar_auth.py` | Login OAuth sekali |
+| `config/calendar-project-map.example.json` | Mapping keyword meeting → project |
+| `fixtures/sample-calendar-week.json` | Sample calendar untuk uji offline |

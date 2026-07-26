@@ -1,0 +1,21 @@
+{
+  "default_project": "Internal / Meetings",
+  "calendars": ["primary"],
+  "rules": [
+    {
+      "match": ["hajiyanto-pci", "stock screener", "telegram bot", "idx"],
+      "project": "hajiyanto-pci"
+    },
+    {
+      "match": ["ers", "odoo.sh", "migration"],
+      "project": "ers-odoo-sh-migration"
+    },
+    {
+      "match": ["standup", "daily", "1:1", "sync"],
+      "project": "Internal / Meetings"
+    }
+  ],
+  "exclude_titles": ["lunch", "focus block", "ooo", "out of office"],
+  "include_all_day": false,
+  "include_declined": false
+}
