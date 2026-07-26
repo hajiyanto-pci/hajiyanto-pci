@@ -8,3 +8,9 @@ config/calendar-project-map.json
 .env
 .env.*
 *.pem
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
