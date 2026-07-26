@@ -1,0 +1,197 @@
+{
+  "generated_at": "2026-07-26T01:07:28.889319Z",
+  "since": "2026-07-19T01:07:28.889319Z",
+  "until": "2026-07-26T01:07:28.889319Z",
+  "git_root": "/workspace",
+  "remote": "https://***@github.com/hajiyanto-pci/hajiyanto-pci",
+  "commit_count": 22,
+  "commits": [
+    {
+      "sha": "fa8c38ee",
+      "date": "2026-07-24T08:55:45+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Recognize stochastoc typo for stochastic",
+      "refs": "origin/cursor/stock-screener-alerts-8093"
+    },
+    {
+      "sha": "8be3d0f4",
+      "date": "2026-07-24T08:54:20+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Expand technical screen presets and messy-prompt NLU",
+      "refs": ""
+    },
+    {
+      "sha": "a77d6ab3",
+      "date": "2026-07-24T08:42:11+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add Stochastic oversold screening via natural chat",
+      "refs": ""
+    },
+    {
+      "sha": "da403351",
+      "date": "2026-07-24T07:56:59+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add agent-style request understanding before stock tools",
+      "refs": ""
+    },
+    {
+      "sha": "274595d7",
+      "date": "2026-07-24T07:44:28+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add IHSG outlook from Yahoo tech, macro, and news",
+      "refs": ""
+    },
+    {
+      "sha": "3fa4ebcd",
+      "date": "2026-07-24T07:29:46+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Improve natural-language intent for screening chats",
+      "refs": ""
+    },
+    {
+      "sha": "878ec79f",
+      "date": "2026-07-24T07:24:15+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Fix hari-ini chat misread as ticker and harden bot polling",
+      "refs": ""
+    },
+    {
+      "sha": "b3d0afe5",
+      "date": "2026-07-23T00:15:45+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add automatic break-resistance Telegram alerts",
+      "refs": ""
+    },
+    {
+      "sha": "23c574ae",
+      "date": "2026-07-23T00:09:10+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add single-stock Telegram analysis with decision advice",
+      "refs": ""
+    },
+    {
+      "sha": "4263a097",
+      "date": "2026-07-22T23:51:01+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Mention SL/TP and schedule times in bot help text",
+      "refs": ""
+    },
+    {
+      "sha": "c4205e6c",
+      "date": "2026-07-22T23:50:54+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add SL/TP suggestions and 09:10 plus session-break schedules",
+      "refs": ""
+    },
+    {
+      "sha": "87e6897c",
+      "date": "2026-07-22T23:42:48+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Support natural-language dates in Telegram bot chats",
+      "refs": ""
+    },
+    {
+      "sha": "dce0ff67",
+      "date": "2026-07-22T23:36:49+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Clarify GitHub Actions secret name format in docs",
+      "refs": ""
+    },
+    {
+      "sha": "99b9928e",
+      "date": "2026-07-22T23:29:10+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add interactive Telegram bot commands for dated scans",
+      "refs": ""
+    },
+    {
+      "sha": "5d1bf382",
+      "date": "2026-07-22T23:24:31+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add multi-factor formula and GitHub Actions online runs",
+      "refs": ""
+    },
+    {
+      "sha": "a4e3bc70",
+      "date": "2026-07-22T23:18:19+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add --as-of kemarin for previous-session stock analysis",
+      "refs": ""
+    },
+    {
+      "sha": "841ae22b",
+      "date": "2026-07-22T23:13:34+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Allow manual --chat-id for Telegram setup",
+      "refs": ""
+    },
+    {
+      "sha": "3d958755",
+      "date": "2026-07-22T23:03:26+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Clarify Telegram chat_id setup steps in docs",
+      "refs": ""
+    },
+    {
+      "sha": "b6fe7060",
+      "date": "2026-07-22T23:03:12+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add --get-chat-id helper for Telegram setup",
+      "refs": ""
+    },
+    {
+      "sha": "ff0ccbed",
+      "date": "2026-07-22T22:52:28+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add Telegram/WhatsApp alerts with accumulation checklist",
+      "refs": ""
+    },
+    {
+      "sha": "2b37b7ed",
+      "date": "2026-07-22T21:04:01+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Recommend EOD alerts and add morning/midday modes",
+      "refs": ""
+    },
+    {
+      "sha": "66ade088",
+      "date": "2026-07-22T20:51:57+00:00",
+      "author": "Cursor Agent <cursoragent@cursor.com>",
+      "subject": "Add IDX stock screener with volume breakout alerts",
+      "refs": ""
+    }
+  ],
+  "branch_tips": [
+    {
+      "name": "origin/cursor/stock-screener-alerts-8093",
+      "date": "2026-07-24T08:55:45+00:00",
+      "subject": "Recognize stochastoc typo for stochastic"
+    }
+  ],
+  "pushes_inferred": [
+    {
+      "remote_branch": "origin/cursor/stock-screener-alerts-8093",
+      "tip_date": "2026-07-24T08:55:45+00:00",
+      "tip_subject": "Recognize stochastoc typo for stochastic",
+      "related_commits_this_week": "22"
+    }
+  ],
+  "pull_requests": [
+    {
+      "additions": 6803,
+      "changedFiles": 36,
+      "createdAt": "2026-07-22T20:52:15Z",
+      "deletions": 1,
+      "headRefName": "cursor/stock-screener-alerts-8093",
+      "isDraft": true,
+      "number": 2,
+      "state": "OPEN",
+      "title": "Stock Screener IDX: volume spike + break resistance + notifikasi",
+      "updatedAt": "2026-07-24T08:55:47Z",
+      "url": "https://github.com/hajiyanto-pci/hajiyanto-pci/pull/2"
+    }
+  ],
+  "notes": [
+    "Path /git tidak ada di environment ini; memakai git root terdeteksi (/workspace). Folder .git diperiksa di root tersebut."
+  ]
+}
