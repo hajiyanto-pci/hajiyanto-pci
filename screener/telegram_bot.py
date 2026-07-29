@@ -221,7 +221,8 @@ def _execute_plan(token: str, chat_id: str | int, plan: AgentPlan) -> None:
         send_text(
             token,
             chat_id,
-            f"⏳ Analisa fundamental {code} (PER/PBV/ROE/hutang)...\nTunggu sebentar.",
+            f"⏳ Analisa fundamental {code} + bandingkan peers large-cap sektor...\n"
+            "Tunggu 15–40 detik.",
         )
         try:
             report = analyze_fundamental(code)
