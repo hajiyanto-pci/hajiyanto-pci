@@ -26,10 +26,11 @@ Bot memakai **agent mode**: pahami dulu maksud chat → konfirmasi singkat → j
 
 ```
 dapatkah cek potensi ihsg
+analisa fundamental saham BBCA
+please cek roe pbv BBRI
 cek saham bandarmology hari ini
-stochastic oversold minggu ini
-stoch cross ke atas
-cek saham akumulasi / volume tinggi / rsi oversold / macd putar
+tolong cek saham teknikal stochastic yang lagi bagus
+cek saham teknikal stochastic potensi naik
 /teknikal
 please cek saham emtk
 /watch EMTK

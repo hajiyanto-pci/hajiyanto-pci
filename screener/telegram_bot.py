@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from screener.agent import AgentPlan, format_understanding, understand
 from screener.alerts import add_watch, load_watchlist, remove_watch, run_breakout_alert_job
 from screener.analyze import analyze_stock, format_stock_report
+from screener.fundamental import analyze_fundamental, format_fundamental_report
 from screener.ihsg import analyze_ihsg, format_ihsg_report
 from screener.notifier import build_message
 from screener.presets import format_preset_menu, normalize_preset_key, preset_title
@@ -31,15 +32,13 @@ HELP_TEXT = """📈 Saham Gacor Bot (agent mode)
 Chat bebas / boleh typo — bot pahami dulu, baru analisa.
 
 Contoh:
+• analisa fundamental saham BBCA
+• please cek roe pbv per BBRI
 • dapatkah cek potensi ihsg
 • cek saham bandarmology hari ini
 • tolong cek saham teknikal stochastic yang lagi bagus
-• cek saham teknikal stochastic potensi naik
-• stochastic oversold minggu ini
-• stoch cross ke atas
-• cek saham akumulasi / volume tinggi
 • please cek saham emtk
-• /teknikal  ← daftar semua filter
+• /teknikal  ← daftar filter teknikal
 • /watch EMTK
 
 Opsional NLU AI: set OPENAI_API_KEY di .env
@@ -214,6 +213,26 @@ def _execute_plan(token: str, chat_id: str | int, plan: AgentPlan) -> None:
                 chat_id,
                 f"❌ Gagal analisa {code}: {exc}\n"
                 "Pastikan kode saham BEI benar (contoh EMTK, BBCA).",
+            )
+        return
+
+    if plan.kind == "fundamental" and plan.stock_code:
+        code = plan.stock_code
+        send_text(
+            token,
+            chat_id,
+            f"⏳ Analisa fundamental {code} (PER/PBV/ROE/hutang)...\nTunggu sebentar.",
+        )
+        try:
+            report = analyze_fundamental(code)
+            send_text(token, chat_id, format_fundamental_report(report))
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Gagal analisa fundamental")
+            send_text(
+                token,
+                chat_id,
+                f"❌ Gagal fundamental {code}: {exc}\n"
+                "Pastikan kode saham BEI benar (contoh BBCA, TLKM).",
             )
         return
 

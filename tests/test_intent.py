@@ -87,6 +87,21 @@ def test_tech_menu():
     assert parse_user_intent("filter teknikal apa aja").kind == "tech_menu"
 
 
+def test_fundamental_phrases():
+    cases = [
+        ("please analisa fundamental saham bbca", "BBCA"),
+        ("pelase analisa fundamental saham BBRI", "BBRI"),
+        ("analisa fundamental saham TLKM", "TLKM"),
+        ("cek roe pbv per saham ASII", "ASII"),
+        ("/fundamental EMTK", "EMTK"),
+        ("valuasi saham BMRI", "BMRI"),
+    ]
+    for phrase, code in cases:
+        intent = parse_user_intent(phrase)
+        assert intent.kind == "fundamental", phrase
+        assert intent.stock_code == code, (phrase, intent.stock_code)
+
+
 if __name__ == "__main__":
     test_screen_phrases()
     test_stock_phrases()
@@ -95,4 +110,5 @@ if __name__ == "__main__":
     test_stoch_oversold_phrases()
     test_tech_presets_messy()
     test_tech_menu()
+    test_fundamental_phrases()
     print("OK: intent natural tests passed")

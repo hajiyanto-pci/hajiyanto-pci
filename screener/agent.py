@@ -35,6 +35,7 @@ AgentKind = Literal[
     "ihsg",
     "screen",
     "stock",
+    "fundamental",
     "tech_menu",
     "clarify",
     "unknown",
@@ -51,7 +52,9 @@ Tools yang tersedia:
     accumulation | volume | rsi_oversold | macd_turn
   screen_label: kemarin | hari ini | minggu ini | YYYY-MM-DD
   stoch_lookback: 1 (hari) atau 5 (minggu)
-- stock: analisa 1 kode saham BEI
+- stock: analisa 1 kode saham BEI (teknikal)
+- fundamental: analisa fundamental (PER, PBV, ROE, hutang, dll) + saran
+  stock_code wajib, contoh BBCA
 - breakout: cek break resistance baru
 - watch / unwatch / watchlist
 - clarify / unknown
@@ -88,6 +91,8 @@ Aturan:
 - macd putar/cross → macd_turn
 - minta daftar filter/teknikal → tech_menu
 - ihsg/makro → ihsg
+- analisa fundamental / roe / pbv / per / valuasi + kode saham → fundamental
+- cek EMTK / analisa BBCA (tanpa kata fundamental) → stock
 """
 
 
@@ -126,6 +131,13 @@ def _intent_understanding(intent: BotIntent) -> str:
         return f"Kamu ingin screening {preset_title(st)} untuk {label}."
     if intent.kind == "stock" and intent.stock_code:
         return f"Kamu ingin analisa teknikal saham {intent.stock_code}."
+    if intent.kind == "fundamental":
+        if intent.stock_code:
+            return (
+                f"Kamu ingin analisa fundamental {intent.stock_code} "
+                "(PER, PBV, ROE, hutang, dll) plus saran ke depan."
+            )
+        return "Kamu ingin analisa fundamental, tapi kode sahamnya belum jelas."
     if intent.kind == "breakout":
         return "Kamu ingin cek saham yang baru break resistance."
     if intent.kind == "watch" and intent.stock_code:
@@ -144,6 +156,10 @@ def _confidence_for_intent(intent: BotIntent) -> float:
         return 0.92
     if intent.kind in {"watch", "unwatch"} and intent.stock_code:
         return 0.9
+    if intent.kind == "fundamental" and intent.stock_code:
+        return 0.9
+    if intent.kind == "fundamental":
+        return 0.4
     if intent.kind == "stock" and intent.stock_code:
         return 0.88
     if intent.kind == "screen":
@@ -163,12 +179,24 @@ def plan_from_rules(text: str) -> AgentPlan:
             clarify_question=(
                 "Maksudnya apa ya? Chat boleh acak, contoh:\n"
                 "• ihsg hari ini\n"
+                "• analisa fundamental saham BBCA\n"
                 "• cek saham bandarmology\n"
-                "• stochastic oversold minggu ini\n"
-                "• stochastic cross ke atas\n"
+                "• stochastic yang lagi bagus\n"
                 "• saham potensi hari ini\n"
                 "• cek saham EMTK\n"
                 "• /teknikal  (lihat semua filter)"
+            ),
+            source="rules",
+            raw=text,
+        )
+    if intent.kind == "fundamental" and not intent.stock_code:
+        return AgentPlan(
+            kind="clarify",
+            confidence=0.4,
+            understanding=understanding,
+            clarify_question=(
+                "Saham mana yang mau dianalisa fundamental?\n"
+                "Contoh: analisa fundamental saham BBCA"
             ),
             source="rules",
             raw=text,
@@ -253,6 +281,7 @@ def plan_from_llm(text: str) -> AgentPlan | None:
         "ihsg",
         "screen",
         "stock",
+        "fundamental",
         "tech_menu",
         "clarify",
         "unknown",
@@ -307,6 +336,12 @@ def plan_from_llm(text: str) -> AgentPlan | None:
     if kind == "stock" and not stock_code:
         kind = "clarify"
         clarify_q = clarify_q or "Kode saham mana yang mau dianalisa? Contoh: EMTK / BBCA"
+    if kind == "fundamental" and not stock_code:
+        kind = "clarify"
+        clarify_q = clarify_q or (
+            "Saham mana yang mau dianalisa fundamental?\n"
+            "Contoh: analisa fundamental saham BBCA"
+        )
     if kind in {"watch", "unwatch"} and not stock_code:
         kind = "clarify"
         clarify_q = clarify_q or "Sebutkan kode sahamnya. Contoh: /watch EMTK"
@@ -388,7 +423,9 @@ def format_understanding(plan: AgentPlan) -> str:
             f"→ Menjalankan agent: {preset_title(plan.screen_type)} ({label})"
         )
     elif plan.kind == "stock" and plan.stock_code:
-        lines.append(f"→ Menjalankan agent: analisa {plan.stock_code}")
+        lines.append(f"→ Menjalankan agent: analisa teknikal {plan.stock_code}")
+    elif plan.kind == "fundamental" and plan.stock_code:
+        lines.append(f"→ Menjalankan agent: fundamental {plan.stock_code}")
     elif plan.kind == "breakout":
         lines.append("→ Menjalankan agent: cek breakout baru")
     elif plan.kind in {"watch", "unwatch", "watchlist"}:

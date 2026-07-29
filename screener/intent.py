@@ -19,6 +19,7 @@ IntentKind = Literal[
     "ihsg",
     "screen",
     "stock",
+    "fundamental",
     "tech_menu",
     "unknown",
 ]
@@ -142,7 +143,15 @@ _NOT_TICKERS = {
     "silang",
     "filter",
     "menu",
+    "fundamental",
+    "fundamentals",
+    "roe",
+    "pbv",
+    "per",
+    "hutang",
+    "valuasi",
 }
+
 
 
 # Kata yang menandakan screening banyak saham (bukan 1 ticker)
@@ -271,6 +280,14 @@ def _normalize_chat(text: str) -> str:
         r"\bsemabrangan\b": "sembarangan",
         r"\bsembrangan\b": "sembarangan",
         r"\bimprve\b": "improve",
+        r"\bpelase\b": "please",
+        r"\bplese\b": "please",
+        r"\bfundemental\b": "fundamental",
+        r"\bfundametal\b": "fundamental",
+        r"\bfundamentl\b": "fundamental",
+        r"\bfundamentals\b": "fundamental",
+        r"\bvaluasi\b": "valuasi",
+        r"\bhutang\b": "hutang",
     }
     for pat, rep in replacements.items():
         t = re.sub(pat, rep, t)
@@ -391,6 +408,36 @@ def extract_stock_code(text: str) -> str | None:
         ):
             return candidates[0].upper()
     return None
+
+
+def _is_fundamental_phrase(lower: str) -> bool:
+    if "fundamental" in lower or "valuasi" in lower:
+        return True
+    # "cek roe/pbv/per saham bbca"
+    if any(k in lower for k in ("roe", "pbv", "per ", " per", "hutang", "neraca")):
+        if "saham" in lower or re.search(r"\b[a-z]{3,5}\b", lower):
+            return True
+    if lower.startswith("/fundamental") or lower.startswith("/fund"):
+        return True
+    return False
+
+
+def _extract_fundamental_code(lower: str, raw: str) -> str | None:
+    """Ambil kode saham dari frasa fundamental."""
+    m = re.search(
+        r"(?:/(?:fundamental|fund)|fundamental|valuasi|roe|pbv|per)\s+"
+        r"(?:saham\s+)?([a-z]{3,5})\b",
+        lower,
+    )
+    if m and m.group(1) not in _NOT_TICKERS and m.group(1) not in _STOP:
+        return m.group(1).upper()
+
+    m = re.search(r"\bsaham\s+([a-z]{3,5})\b", lower)
+    if m and m.group(1) not in _NOT_TICKERS and m.group(1) not in _STOP:
+        return m.group(1).upper()
+
+    # fallback: extract_stock_code
+    return extract_stock_code(raw)
 
 
 def _is_stoch_oversold_phrase(lower: str) -> bool:
@@ -596,6 +643,11 @@ def parse_user_intent(text: str) -> BotIntent:
 
     if lower in {"/breakout", "breakout", "/alert breakout", "cek breakout"}:
         return BotIntent(kind="breakout", raw=raw)
+
+    # Fundamental: "please analisa fundamental saham bbca"
+    if _is_fundamental_phrase(lower):
+        code = _extract_fundamental_code(lower, raw)
+        return BotIntent(kind="fundamental", stock_code=code, raw=raw)
 
     if lower in {"/teknikal", "/filter", "menu teknikal", "filter teknikal"}:
         return BotIntent(kind="tech_menu", raw=raw)
