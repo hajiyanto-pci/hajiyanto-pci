@@ -33,12 +33,11 @@ Chat bebas / boleh typo — bot pahami dulu, baru analisa.
 Contoh:
 • dapatkah cek potensi ihsg
 • cek saham bandarmology hari ini
+• tolong cek saham teknikal stochastic yang lagi bagus
+• cek saham teknikal stochastic potensi naik
 • stochastic oversold minggu ini
 • stoch cross ke atas
-• cek saham akumulasi
-• volume tinggi hari ini
-• rsi oversold
-• macd putar naik
+• cek saham akumulasi / volume tinggi
 • please cek saham emtk
 • /teknikal  ← daftar semua filter
 • /watch EMTK
@@ -112,10 +111,15 @@ def _run_screen_and_reply(
         screen_label=label,
     )
     if not signals:
-        msg += (
-            f"\n\nTidak ada yang lolos filter {title}. "
-            "Coba 'minggu ini', tanggal lain, atau /teknikal."
+        tips = (
+            f"\n\nTidak ada yang lolos filter {title}.\n"
+            "Coba:\n"
+            "• minggu ini (lebih longgar)\n"
+            "• stochastic yang lagi bagus\n"
+            "• stoch cross ke atas\n"
+            "• /teknikal"
         )
+        msg += tips
     send_text(token, chat_id, msg)
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 
@@ -70,6 +71,28 @@ PRESETS: dict[str, ScreenPreset] = {
             "cross up",
         ),
         weight=1.4,
+    ),
+    "stoch_bullish": ScreenPreset(
+        key="stoch_bullish",
+        title="Stochastic bagus / potensi naik",
+        short="%K > %D di zona sehat, atau cross naik",
+        example="cek saham teknikal stochastic yang lagi bagus",
+        keywords=(
+            "stochastic bagus",
+            "stoch bagus",
+            "stochastic baik",
+            "stochastic sehat",
+            "stochastic bullish",
+            "stochastic potensi",
+            "stoch potensi",
+            "teknikal stochastic",
+            "teknis stochastic",
+            "stochastic naik",
+            "stoch naik",
+            "stochastic yang bagus",
+            "lagi bagus",
+        ),
+        weight=1.45,
     ),
     "bandar": ScreenPreset(
         key="bandar",
@@ -160,6 +183,10 @@ PRESET_ALIASES: dict[str, str] = {
     "stoch_oversold": "stoch_oversold",
     "stoch_cross_up": "stoch_cross",
     "stochastic_cross": "stoch_cross",
+    "stoch_bullish": "stoch_bullish",
+    "stochastic_bullish": "stoch_bullish",
+    "stochastic": "stoch_bullish",
+    "stoch": "stoch_bullish",
     "bandarmology": "bandar",
     "bandarmologi": "bandar",
     "money_flow": "bandar",
@@ -201,13 +228,23 @@ def detect_screen_type(lower: str) -> tuple[str, float]:
     if not text:
         return "breakout", 0.3
 
+    has_stoch = "stochastic" in text or re.search(r"\bstoch\b", text) is not None
+
+    # Stochastic selalu menang atas "potensi naik" generik
+    if has_stoch:
+        if "oversold" in text or "jenuh jual" in text or "rendah" in text:
+            return "stoch_oversold", 0.92
+        if any(w in text for w in ("cross", "silang", "golden", "putar")):
+            return "stoch_cross", 0.9
+        # "stochastic bagus / potensi naik / teknikal stochastic" → bullish
+        return "stoch_bullish", 0.88
+
     best_key = "breakout"
     best_score = 0.0
     for key, preset in PRESETS.items():
         score = 0.0
         for kw in preset.keywords:
             if kw in text:
-                # keyword lebih panjang = lebih spesifik
                 score = max(score, (len(kw) / 28.0) * preset.weight + 0.35)
         if score > best_score:
             best_score = score
@@ -216,17 +253,15 @@ def detect_screen_type(lower: str) -> tuple[str, float]:
     # Heuristik tambahan messy prompts
     if "bandar" in text and best_key == "breakout":
         best_key, best_score = "bandar", max(best_score, 0.75)
-    if ("cross" in text or "silang" in text) and "stochastic" in text:
-        best_key, best_score = "stoch_cross", max(best_score, 0.85)
     if "oversold" in text and "rsi" in text:
         best_key, best_score = "rsi_oversold", max(best_score, 0.85)
-    elif "oversold" in text and "stochastic" in text:
-        best_key, best_score = "stoch_oversold", max(best_score, 0.88)
     elif "oversold" in text:
         best_key, best_score = "stoch_oversold", max(best_score, 0.7)
+    if any(w in text for w in ("lagi bagus", "yang bagus", "yang baik")) and best_key == "breakout":
+        # tanpa indikator eksplisit — minta menu lebih aman, tapi bila ada saham → breakout
+        pass
 
     if best_score <= 0:
-        # default potensi/breakout jika ada kata saham/screening
         if any(w in text for w in ("saham", "screening", "scan", "potensi", "kandidat")):
             return "breakout", 0.55
         return "breakout", 0.35

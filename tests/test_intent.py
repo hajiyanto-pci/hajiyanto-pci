@@ -71,6 +71,10 @@ def test_tech_presets_messy():
         ("rsi oversold dong", "rsi_oversold"),
         ("macd putar naik", "macd_turn"),
         ("cek saham potensi naik kemarin", "breakout"),
+        ("tolong cek saham dengan teknikal stochastic yang lagi bagus", "stoch_bullish"),
+        ("tolgn cek saham dengan teknika stochastic yang lagi bagus", "stoch_bullish"),
+        ("cek saham teknikal stochastic potensi naik", "stoch_bullish"),
+        ("cek saham stochastic", "stoch_bullish"),
     ]
     for phrase, expected in cases:
         intent = parse_user_intent(phrase)

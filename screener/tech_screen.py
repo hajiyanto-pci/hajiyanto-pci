@@ -37,6 +37,7 @@ class FeatureSnap:
     prev_k: float
     prev_d: float
     stoch_cross_up: bool
+    stoch_cross_recent: bool
     min_k: float
     last_rsi: float
     last_ma: float
@@ -104,6 +105,20 @@ def _compute_features(
     prev_d = float(d_series.iloc[-2]) if len(d_series) > 1 and np.isfinite(d_series.iloc[-2]) else last_d
     stoch_cross_up = prev_k <= prev_d and last_k > last_d
 
+    # Cross ke atas dalam lookback (untuk "minggu ini")
+    stoch_cross_recent = stoch_cross_up
+    if lookback > 1 and len(k_series) >= lookback + 1:
+        for i in range(-(lookback), 0):
+            kk = float(k_series.iloc[i]) if np.isfinite(k_series.iloc[i]) else None
+            dd = float(d_series.iloc[i]) if np.isfinite(d_series.iloc[i]) else None
+            pk = float(k_series.iloc[i - 1]) if np.isfinite(k_series.iloc[i - 1]) else None
+            pd_ = float(d_series.iloc[i - 1]) if np.isfinite(d_series.iloc[i - 1]) else None
+            if None in (kk, dd, pk, pd_):
+                continue
+            if pk <= pd_ and kk > dd:
+                stoch_cross_recent = True
+                break
+
     window_k = k_series.iloc[-lookback:].astype(float)
     window_k = window_k[np.isfinite(window_k)]
     min_k = float(window_k.min()) if not window_k.empty else last_k
@@ -147,6 +162,7 @@ def _compute_features(
         prev_k=prev_k,
         prev_d=prev_d,
         stoch_cross_up=stoch_cross_up,
+        stoch_cross_recent=stoch_cross_recent,
         min_k=min_k,
         last_rsi=last_rsi,
         last_ma=last_ma,
@@ -230,12 +246,20 @@ def _passes_and_score(preset: str, f: FeatureSnap, cfg: dict) -> tuple[bool, flo
             reasons.append(f"RSI rendah ({f.last_rsi:.0f})")
 
     elif preset == "stoch_cross":
-        ok = f.stoch_cross_up
+        ok = f.stoch_cross_up or (lookback > 1 and f.stoch_cross_recent)
         factors["stochastic"] = 40 if f.last_k <= 40 else 28
-        reasons.insert(
-            0,
-            f"Stoch cross ke atas (%K {f.last_k:.0f} > %D {f.last_d:.0f})",
-        )
+        if f.stoch_cross_up:
+            reasons.insert(
+                0,
+                f"Stoch cross ke atas (%K {f.last_k:.0f} > %D {f.last_d:.0f})",
+            )
+        else:
+            reasons.insert(
+                0,
+                f"Stoch pernah cross ke atas dalam {lookback}d "
+                f"(sekarang %K {f.last_k:.0f} / %D {f.last_d:.0f})",
+            )
+            score_bonus -= 5
         if f.last_k <= 30:
             factors["stoch_zone"] = 18
             reasons.append("Cross dari zona oversold (lebih menarik)")
@@ -245,6 +269,52 @@ def _passes_and_score(preset: str, f: FeatureSnap, cfg: dict) -> tuple[bool, flo
         else:
             factors["stoch_zone"] = 0
             reasons.append("Cross di zona tinggi — waspada")
+
+    elif preset == "stoch_bullish":
+        # Stochastic "lagi bagus / potensi naik":
+        # - cross ke atas, ATAU
+        # - %K > %D di zona sehat 20–80, ATAU
+        # - rebound dari oversold (%K naik dari ≤25)
+        healthy = f.last_k > f.last_d and 20 <= f.last_k <= 80
+        rebound = f.min_k <= 25 and f.last_k > f.last_d and f.last_k <= 55
+        ok = f.stoch_cross_up or f.stoch_cross_recent or healthy or rebound
+        factors["stochastic"] = 0
+        if f.stoch_cross_up:
+            factors["stochastic"] += 35
+            reasons.insert(
+                0,
+                f"Stoch bullish: cross ke atas (%K {f.last_k:.0f} > %D {f.last_d:.0f})",
+            )
+        elif healthy:
+            factors["stochastic"] += 30
+            reasons.insert(
+                0,
+                f"Stoch bullish: %K > %D di zona sehat ({f.last_k:.0f}/{f.last_d:.0f})",
+            )
+        elif rebound:
+            factors["stochastic"] += 32
+            reasons.insert(
+                0,
+                f"Stoch rebound dari oversold (min {f.min_k:.0f} → %K {f.last_k:.0f})",
+            )
+        elif f.stoch_cross_recent:
+            factors["stochastic"] += 25
+            reasons.insert(0, f"Stoch pernah cross naik {lookback}d terakhir")
+        if 25 <= f.last_k <= 65:
+            factors["stoch_zone"] = 12
+            reasons.append("Zona Stochastic ideal untuk potensi lanjut naik")
+        elif f.last_k < 20:
+            factors["stoch_zone"] = 8
+            reasons.append("Masih oversold — pantau konfirmasi cross")
+        elif f.last_k > 80:
+            factors["stoch_zone"] = 0
+            reasons.append("Stoch tinggi — risiko jenuh beli")
+            score_bonus -= 8
+        if f.macd_turn_up:
+            factors["macd_confirm"] = 8
+            reasons.append("MACD mendukung")
+        if f.vol_ratio >= 1.2:
+            factors["vol_confirm"] = 6
 
     elif preset == "bandar":
         ok = f.money_ok and f.cmf >= 0.05
@@ -331,7 +401,7 @@ def evaluate_tech_preset(
     min_score = float(
         cfg.get(
             "tech_min_score",
-            cfg.get("stoch_oversold_min_score", 45),
+            cfg.get("stoch_oversold_min_score", 35),
         )
     )
     as_of = cfg.get("as_of")

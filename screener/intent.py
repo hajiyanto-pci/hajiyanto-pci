@@ -258,12 +258,18 @@ def _normalize_chat(text: str) -> str:
         r"\bvolum\b": "volume",
         r"\bakumulsi\b": "akumulasi",
         r"\bakumulasii\b": "akumulasi",
+        r"\btolgn\b": "tolong",
+        r"\btolng\b": "tolong",
+        r"\bteknika\b": "teknikal",
+        r"\bteknikal\b": "teknikal",
+        r"\blgi\b": "lagi",
+        r"\bbgus\b": "bagus",
+        r"\bbguas\b": "bagus",
         r"\bnais\b": "bisa",
         r"\bbagimana\b": "bagaimana",
         r"\bkemauan\b": "kemauan",
         r"\bsemabrangan\b": "sembarangan",
         r"\bsembrangan\b": "sembarangan",
-        r"\bimprve\b": "improve",
         r"\bimprve\b": "improve",
     }
     for pat, rep in replacements.items():
@@ -416,6 +422,7 @@ def _is_technical_screen_phrase(lower: str) -> bool:
         "akumulasi",
         "accumulation",
         "stochastic",
+        "stoch",
         "oversold",
         "cross ke atas",
         "silang ke atas",
@@ -430,6 +437,9 @@ def _is_technical_screen_phrase(lower: str) -> bool:
         "screening",
         "screener",
         "scan saham",
+        "teknikal stochastic",
+        "teknis stochastic",
+        "lagi bagus",
     )
     return any(k in lower for k in keys)
 
