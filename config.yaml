@@ -1,0 +1,81 @@
+# Konfigurasi Stock Screener IDX (multi-faktor)
+market: IDX
+currency: IDR
+
+# Mode notifikasi default:
+#   eod     = sore setelah close (~16:20) → PALING DIREKOMENDASIKAN
+#   morning = pagi sebelum open (~08:30) → watchlist breakout H-1
+#   midday  = siang (11:00 / 14:00) → early alert volume naik (lebih noisy)
+mode: eod
+
+# Universe saham (kode tanpa .JK). Kosongkan untuk pakai daftar default likuid.
+symbols: []
+
+# Lookback data harian
+history_days: 120
+
+# --- Kriteria volume ---
+volume_avg_days: 20
+volume_spike_min: 1.5
+
+# --- Break resistance ---
+resistance_lookback: 20
+breakout_buffer_pct: 0.0
+
+# --- Momentum / oscillator ---
+rsi_period: 14
+rsi_max: 75
+ma_period: 20
+require_above_ma: true
+stoch_k_period: 14
+stoch_d_period: 3
+stoch_max: 85
+require_stoch: false
+
+# Screening Stochastic oversold (chat: "cek saham stochastic oversold")
+# Default screen_type: breakout | stoch_oversold
+screen_type: breakout
+stoch_oversold_max: 25
+stoch_oversold_lookback: 1
+stoch_oversold_min_score: 35
+high_score_min: 70
+
+# --- Akumulasi & money-flow (proksi bandarmology) ---
+accumulation_lookback: 10
+require_accumulation: true
+require_money_flow: true
+
+# Minimal skor total (0-100) agar masuk alert
+min_score: 62
+
+# Override ketat khusus mode midday (break sesi 1 ~12:05)
+midday_volume_spike_min: 2.0
+midday_min_score: 70
+
+# Override mode open (09:10) — early, lebih longgar sedikit
+open_volume_spike_min: 1.8
+open_min_score: 55
+
+# Saran Stop Loss / Take Profit (long breakout)
+atr_period: 14
+sl_atr_mult: 1.5
+tp1_rr: 1.5
+tp2_rr: 2.5
+
+# --- Filter likuiditas ---
+min_avg_volume: 500000
+min_price: 50
+
+# --- Alert otomatis break resistance ---
+# Notif hanya jika close baru menembus resistance (kemarin masih di bawah)
+breakout_alert_min_avg_volume: 300000
+breakout_alert_min_volume_ratio: 1.0
+# Watchlist tambahan disimpan di output/watchlist.json (via bot /watch EMTK)
+
+# Notifikasi (isi kredensial di .env / GitHub Secrets)
+notify:
+  console: true
+  telegram: true
+  whatsapp: true
+  save_json: true
+  output_dir: output
