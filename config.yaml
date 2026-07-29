@@ -38,7 +38,7 @@ screen_type: breakout
 stoch_oversold_max: 25
 stoch_oversold_lookback: 1
 stoch_oversold_min_score: 35
-tech_min_score: 35
+high_score_min: 70
 
 # --- Akumulasi & money-flow (proksi bandarmology) ---
 accumulation_lookback: 10

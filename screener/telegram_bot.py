@@ -32,6 +32,7 @@ HELP_TEXT = """📈 Saham Gacor Bot (agent mode)
 Chat bebas / boleh typo — bot pahami dulu, baru analisa.
 
 Contoh:
+• cek saham score tinggi teknikal
 • analisa fundamental saham BBCA
 • please cek roe pbv per BBRI
 • dapatkah cek potensi ihsg

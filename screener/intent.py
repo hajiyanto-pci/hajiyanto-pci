@@ -193,6 +193,9 @@ _SCREEN_HINTS = (
     "silang",
     "teknikal",
     "teknis",
+    "score",
+    "skor",
+    "tinggi",
 )
 
 
@@ -487,6 +490,11 @@ def _is_technical_screen_phrase(lower: str) -> bool:
         "teknikal stochastic",
         "teknis stochastic",
         "lagi bagus",
+        "score tinggi",
+        "skor tinggi",
+        "high score",
+        "skor teknikal",
+        "score teknikal",
     )
     return any(k in lower for k in keys)
 

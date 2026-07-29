@@ -48,7 +48,7 @@ Tools yang tersedia:
 - ihsg: outlook IHSG + makro + berita
 - screen: screening saham
   screen_type:
-    breakout | stoch_oversold | stoch_cross | stoch_bullish | bandar |
+    breakout | high_score | stoch_oversold | stoch_cross | stoch_bullish | bandar |
     accumulation | volume | rsi_oversold | macd_turn
   screen_label: kemarin | hari ini | minggu ini | YYYY-MM-DD
   stoch_lookback: 1 (hari) atau 5 (minggu)
@@ -85,6 +85,7 @@ Aturan:
 - stochastic oversold / jenuh jual → stoch_oversold
 - stochastic cross / silang ke atas → stoch_cross
 - stochastic bagus / teknikal stochastic / stochastic potensi naik → stoch_bullish
+- score tinggi / skor tinggi teknikal → screen_type=high_score
 - akumulasi/obv → accumulation
 - volume tinggi/spike → volume
 - rsi oversold → rsi_oversold

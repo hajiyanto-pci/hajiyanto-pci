@@ -316,6 +316,99 @@ def _passes_and_score(preset: str, f: FeatureSnap, cfg: dict) -> tuple[bool, flo
         if f.vol_ratio >= 1.2:
             factors["vol_confirm"] = 6
 
+    elif preset == "high_score":
+        # Multi-faktor "teknikal bagus / skor tinggi" tanpa wajib breakout keras
+        pts = 0.0
+        # Stochastic sehat / cross
+        if f.stoch_cross_up and f.last_k <= 80:
+            pts += 18
+            factors["stochastic"] = 18
+            reasons.append(f"Stoch cross naik (%K {f.last_k:.0f})")
+        elif f.last_k > f.last_d and 20 <= f.last_k <= 75:
+            pts += 14
+            factors["stochastic"] = 14
+            reasons.append(f"Stoch bullish zona sehat (%K {f.last_k:.0f})")
+        elif 20 <= f.last_k <= 80:
+            pts += 8
+            factors["stochastic"] = 8
+            reasons.append(f"Stoch netral-sehat (%K {f.last_k:.0f})")
+        else:
+            factors["stochastic"] = 2
+            pts += 2
+            reasons.append(f"Stoch lemah/ ekstrem (%K {f.last_k:.0f})")
+
+        if f.macd_turn_up or f.macd_hist > 0:
+            pts += 12
+            factors["macd"] = 12
+            reasons.append("MACD mendukung")
+        else:
+            factors["macd"] = 0
+
+        if f.above_ma:
+            pts += 10
+            factors["ma"] = 10
+            reasons.append("Di atas MA")
+        else:
+            factors["ma"] = 0
+            reasons.append("Di bawah MA")
+
+        if f.accumulating:
+            pts += 12
+            factors["accumulation"] = 12
+            reasons.append(f.accum_note)
+        else:
+            factors["accumulation"] = 0
+
+        if f.money_ok:
+            pts += 12
+            factors["money_flow"] = 12
+            reasons.append(f.money_note)
+        else:
+            factors["money_flow"] = min(6.0, float(f.money_pts) * 0.4)
+            pts += factors["money_flow"]
+            reasons.append(f.money_note)
+
+        if f.vol_ratio >= 1.5:
+            pts += 12
+            factors["volume"] = 12
+            reasons.append(f"Volume aktif {f.vol_ratio:.1f}x")
+        elif f.vol_ratio >= 1.0:
+            pts += 7
+            factors["volume"] = 7
+            reasons.append(f"Volume {f.vol_ratio:.1f}x")
+        else:
+            factors["volume"] = 2
+            pts += 2
+
+        if f.breakout:
+            pts += 12
+            factors["breakout"] = 12
+            reasons.append(f"Break resistance (+{f.breakout_pct:.1f}%)")
+        elif f.breakout_pct >= -2:
+            pts += 5
+            factors["breakout"] = 5
+            reasons.append("Mendekati resistance")
+        else:
+            factors["breakout"] = 0
+
+        if 45 <= f.last_rsi <= 70:
+            pts += 8
+            factors["rsi"] = 8
+            reasons.append(f"RSI sehat ({f.last_rsi:.0f})")
+        elif 35 <= f.last_rsi < 45 or 70 < f.last_rsi <= 75:
+            pts += 4
+            factors["rsi"] = 4
+            reasons.append(f"RSI ok ({f.last_rsi:.0f})")
+        else:
+            factors["rsi"] = 1
+            pts += 1
+            reasons.append(f"RSI {f.last_rsi:.0f}")
+
+        high_min = float(cfg.get("high_score_min", 70))
+        ok = pts >= high_min
+        if not ok:
+            reasons.append(f"Skor teknikal {pts:.0f} < ambang {high_min:.0f}")
+
     elif preset == "bandar":
         ok = f.money_ok and f.cmf >= 0.05
         factors["bandar"] = 40 + min(20.0, max(0.0, f.cmf) * 80)
@@ -490,4 +583,5 @@ def evaluate_for_screen_type(
     preset = normalize_preset_key(str(cfg.get("screen_type", "breakout")))
     if preset == "breakout":
         return evaluate_symbol(yahoo_symbol, df, cfg, now=now)
+    # high_score memakai engine tech_screen (soft multi-faktor)
     return evaluate_tech_preset(yahoo_symbol, df, {**cfg, "screen_type": preset}, now=now)

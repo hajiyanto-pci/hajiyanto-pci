@@ -75,6 +75,10 @@ def test_tech_presets_messy():
         ("tolgn cek saham dengan teknika stochastic yang lagi bagus", "stoch_bullish"),
         ("cek saham teknikal stochastic potensi naik", "stoch_bullish"),
         ("cek saham stochastic", "stoch_bullish"),
+        ("cek saham score tinggi teknikal", "high_score"),
+        ("cek saham skor tinggi teknikal", "high_score"),
+        ("saham teknikal skor tinggi", "high_score"),
+        ("screening teknikal bagus score tinggi", "high_score"),
     ]
     for phrase, expected in cases:
         intent = parse_user_intent(phrase)

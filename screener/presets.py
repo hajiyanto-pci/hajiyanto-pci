@@ -19,6 +19,30 @@ class ScreenPreset:
 
 # Urutan penting: keyword lebih spesifik harus menang (score + length)
 PRESETS: dict[str, ScreenPreset] = {
+    "high_score": ScreenPreset(
+        key="high_score",
+        title="Skor teknikal tinggi",
+        short="multi-faktor skor tinggi (volume, break, stoch, money-flow, MACD)",
+        example="cek saham score tinggi teknikal",
+        keywords=(
+            "score tinggi teknikal",
+            "skor tinggi teknikal",
+            "teknikal score tinggi",
+            "teknikal skor tinggi",
+            "score tinggi",
+            "skor tinggi",
+            "high score",
+            "skor teknikal tinggi",
+            "score teknikal tinggi",
+            "teknikal bagus skor",
+            "teknikal bagus score",
+            "saham skor tinggi",
+            "saham score tinggi",
+            "screening skor tinggi",
+            "screening score tinggi",
+        ),
+        weight=1.55,
+    ),
     "breakout": ScreenPreset(
         key="breakout",
         title="Breakout / potensi naik",
@@ -187,6 +211,10 @@ PRESET_ALIASES: dict[str, str] = {
     "stochastic_bullish": "stoch_bullish",
     "stochastic": "stoch_bullish",
     "stoch": "stoch_bullish",
+    "high_score": "high_score",
+    "tech_score": "high_score",
+    "skor_tinggi": "high_score",
+    "score_tinggi": "high_score",
     "bandarmology": "bandar",
     "bandarmologi": "bandar",
     "money_flow": "bandar",
@@ -228,6 +256,21 @@ def detect_screen_type(lower: str) -> tuple[str, float]:
     if not text:
         return "breakout", 0.3
 
+    # Skor teknikal tinggi — sebelum menu/breakout generik
+    if any(
+        p in text
+        for p in (
+            "score tinggi",
+            "skor tinggi",
+            "high score",
+            "skor teknikal",
+            "score teknikal",
+            "teknikal score",
+            "teknikal skor",
+        )
+    ):
+        return "high_score", 0.92
+
     has_stoch = "stochastic" in text or re.search(r"\bstoch\b", text) is not None
 
     # Stochastic selalu menang atas "potensi naik" generik
@@ -236,7 +279,6 @@ def detect_screen_type(lower: str) -> tuple[str, float]:
             return "stoch_oversold", 0.92
         if any(w in text for w in ("cross", "silang", "golden", "putar")):
             return "stoch_cross", 0.9
-        # "stochastic bagus / potensi naik / teknikal stochastic" → bullish
         return "stoch_bullish", 0.88
 
     best_key = "breakout"
@@ -250,16 +292,12 @@ def detect_screen_type(lower: str) -> tuple[str, float]:
             best_score = score
             best_key = key
 
-    # Heuristik tambahan messy prompts
     if "bandar" in text and best_key == "breakout":
         best_key, best_score = "bandar", max(best_score, 0.75)
     if "oversold" in text and "rsi" in text:
         best_key, best_score = "rsi_oversold", max(best_score, 0.85)
     elif "oversold" in text:
         best_key, best_score = "stoch_oversold", max(best_score, 0.7)
-    if any(w in text for w in ("lagi bagus", "yang bagus", "yang baik")) and best_key == "breakout":
-        # tanpa indikator eksplisit — minta menu lebih aman, tapi bila ada saham → breakout
-        pass
 
     if best_score <= 0:
         if any(w in text for w in ("saham", "screening", "scan", "potensi", "kandidat")):
@@ -273,6 +311,28 @@ def detect_screen_type(lower: str) -> tuple[str, float]:
 def is_tech_menu_request(lower: str) -> bool:
     """User minta daftar/filter teknikal tanpa spesifikasi jelas."""
     t = lower or ""
+    # Bukan menu jika minta screening skor tinggi / indikator spesifik
+    if any(
+        x in t
+        for x in (
+            "score tinggi",
+            "skor tinggi",
+            "high score",
+            "skor teknikal",
+            "score teknikal",
+            "stochastic",
+            "oversold",
+            "bandar",
+            "akumulasi",
+            "volume tinggi",
+            "macd",
+            "rsi oversold",
+            "potensi naik",
+            "breakout",
+        )
+    ):
+        return False
+
     triggers = (
         "teknikal lain",
         "teknis lain",
@@ -307,6 +367,8 @@ def is_tech_menu_request(lower: str) -> bool:
             "breakout",
             "cross",
             "ihsg",
+            "score",
+            "skor",
         )
     ):
         return True
